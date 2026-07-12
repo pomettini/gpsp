@@ -15,6 +15,7 @@ gpsp.pdx/
 Source/pdex.*
 Source/*.gba
 Source/*.sav
+!Source/bench_firered_intro.txt
 
 # Claude
 .claude/

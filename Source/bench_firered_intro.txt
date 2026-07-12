@@ -1,0 +1,140 @@
+# FireRed intro/onboarding masher: Start presses through the title,
+# then A-mash through dialogs. UP = GBA Start (shell bridge).
+wait 100
+hold UP 6
+wait 44
+hold UP 6
+wait 44
+hold UP 6
+wait 44
+hold UP 6
+wait 44
+hold UP 6
+wait 44
+hold UP 6
+wait 44
+hold UP 6
+wait 44
+hold UP 6
+wait 44
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+hold A 6
+wait 24
+stop

@@ -35,17 +35,26 @@ SRC = playdate_main.c \
       serial.c \
       gbp.c \
       rfu.c \
-      serial_proto.c
+      serial_proto.c \
+      pd_playbench_unit.c
 
 # Non-.c translation units (common.mk's object list only handles .c).
 SRC_XX = cpu.cc video.cc bios_data.S
 
-UINCDIR = libretro libretro/libretro-common/include pd-rom-picker/src
+UINCDIR = libretro libretro/libretro-common/include pd-rom-picker/src \
+          pd-playbench/src
 UASRC =
 # Interpreter-only build (no HAVE_DYNAREC). 8MB ROM page cache, see NOTES.md.
 # PD_SHELL_AUDIO: the shell owns the per-frame render_gbc_sound() call
 # (currently skipped entirely — samples are discarded until Phase 3 audio).
 UDEFS = -DROM_BUFFER_SIZE=8 -DPD_SHELL_AUDIO
+
+# make BENCH=1: scripted-input benchmark build (pd-playbench). The script
+# comes from /Shared/Emulation/gba/bench_script.txt if present, else the
+# bundled Source/bench_firered_intro.txt. Run `make clean` when toggling.
+ifeq ($(BENCH),1)
+UDEFS += -DPD_PLAYBENCH_ENABLED
+endif
 UADEFS =
 ULIBDIR =
 ULIBS =

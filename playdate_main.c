@@ -11,6 +11,7 @@
 #include "common.h"
 #include "render.h"
 #include "rom_picker.h"
+#include "pd_playbench.h"
 
 void pd_filestream_init(PlaydateAPI *pd);
 #ifdef TARGET_PLAYDATE
@@ -70,6 +71,17 @@ static int16_t pd_input_state(unsigned port, unsigned device,
   (void)index;
 
   pd->system->getButtonState(&cur, NULL, NULL);
+
+  /* Bench builds: scripted input replaces the real buttons while a script
+   * runs. Script UP bridges to GBA Start (nofrendo's UP->Start convention;
+   * PDButtons has no Start and playbench's MENU token never reaches
+   * PDButtons), so benchmark scripts use UP wherever Start is meant. */
+  cur = pd_playbench_get_buttons(cur);
+  if (pd_playbench_is_running() && (cur & kButtonUp))
+  {
+    cur &= ~kButtonUp;
+    mask |= 1 << RETRO_DEVICE_ID_JOYPAD_START;
+  }
 
   if (cur & kButtonUp)    mask |= 1 << RETRO_DEVICE_ID_JOYPAD_UP;
   if (cur & kButtonDown)  mask |= 1 << RETRO_DEVICE_ID_JOYPAD_DOWN;
@@ -276,6 +288,32 @@ static void start_emulation(void)
   perf_emu_ms = perf_blit_ms = perf_emu_max_ms = 0;
   perf_window_start_ms = pd->system->getCurrentTimeMilliseconds();
   pd->system->logToConsole("gpsp: running %s", selected_rom);
+
+  /* Bench builds (make BENCH=1): scripted input + frame-time report,
+   * written to pd-playbench-report.txt in the Data folder when the script
+   * finishes. A /Shared script overrides the bundled one so benchmarks can
+   * be swapped over the data disk without rebuilding. */
+  {
+    PDBenchConfig cfg = {0};
+    cfg.test_name = "scripted-run";
+    cfg.emulator_name = "gpsp";
+    cfg.rom_name = selected_rom;
+    cfg.build_label = __DATE__ " " __TIME__;
+    cfg.device_label = "RevB";
+    cfg.target_fps = 50;
+    cfg.log_to_console = 1;
+    cfg.write_report_file = 1;
+    cfg.input_mode = PD_PLAYBENCH_INPUT_OVERRIDE;
+    pd_playbench_init(pd, &cfg);
+    if (pd_playbench_load_script_from_file("/Shared/Emulation/gba/bench_script.txt"))
+      pd->system->logToConsole("gpsp bench: loaded /Shared script");
+    else if (pd_playbench_load_script_from_file("bench_firered_intro.txt"))
+      pd->system->logToConsole("gpsp bench: loaded bundled script");
+    else
+      pd->system->logToConsole("gpsp bench: no script (%s)",
+                               pd_playbench_get_last_error());
+    pd_playbench_start();
+  }
 }
 
 static void return_to_picker(void)
@@ -398,6 +436,9 @@ static int update(void *userdata)
   pd->system->drawFPS(0, 0);
 
   last_update_ms = t2 - t0;
+  pd_playbench_update();
+  pd_playbench_report_frame((float)last_update_ms, skip ? 1 : 0);
+
   perf_updates++;
   perf_emu_ms += t1 - t0;
   if (t1 - t0 > perf_emu_max_ms)

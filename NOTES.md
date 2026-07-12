@@ -247,6 +247,19 @@ the interpreter alone likely sits at ~15-18 FPS. So:
    Not a promise — it will be measured, and affine-heavy games stay out
    of scope.
 
+### Scripted benchmarks (pd-playbench)
+
+`make clean && make BENCH=1` builds with the pd-playbench submodule enabled
+(same integration as nofrendo): input comes from a script, frame times are
+collected, and a report (`pd-playbench-report.txt`, Data folder) is written
+when the script ends. Script resolution order: `/Shared/Emulation/gba/
+bench_script.txt` (swap over the data disk, no rebuild), else the bundled
+`Source/bench_firered_intro.txt` (Start presses through the title, then
+A-mash through the onboarding dialogs, ~2300 update frames). Script `UP`
+bridges to GBA **Start** while a script runs (PDButtons has no Start —
+nofrendo's UP→Start convention). Normal builds compile the same shell calls
+against the header's no-op stubs; `make clean` when toggling BENCH.
+
 ### Benchmark format (Phase 3 fills this in)
 
 ```
