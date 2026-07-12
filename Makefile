@@ -36,7 +36,8 @@ SRC = playdate_main.c \
       gbp.c \
       rfu.c \
       serial_proto.c \
-      pd_playbench_unit.c
+      pd_playbench_unit.c \
+      pd_jit_smoke.c
 
 # Non-.c translation units (common.mk's object list only handles .c).
 SRC_XX = cpu.cc video.cc bios_data.S
@@ -54,6 +55,12 @@ UDEFS = -DROM_BUFFER_SIZE=8 -DPD_SHELL_AUDIO
 # bundled Source/bench_firered_intro.txt. Run `make clean` when toggling.
 ifeq ($(BENCH),1)
 UDEFS += -DPD_PLAYBENCH_ENABLED
+endif
+
+# make JITSMOKE=1: run the Thumb-2 emit-and-execute smoke test at boot
+# (Phase 4 step 0, see pd_jit_smoke.c). Run `make clean` when toggling.
+ifeq ($(JITSMOKE),1)
+UDEFS += -DPD_JIT_SMOKE
 endif
 UADEFS =
 ULIBDIR =

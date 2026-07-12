@@ -269,6 +269,15 @@ Game            | emu ms | ppu ms | 1bit+blit ms | audio ms | total ms | skips
 Wario Land 4    |        |        |              |          |          |
 ```
 
+## Bench 2026-07-12 15d5c3b RevB (pd-playbench, bundled FireRed intro script)
+avg_frame_ms=68.68 best=16 worst=263 | est fps=14.56 | skipped 1694/2300 (74%)
+
+- First scripted run — THE baseline all future builds compare against.
+- Includes the PSG-mixing removal + -O3 interpreter: only a few ms better
+  than the c914e1f manual run below (and a different workload) → the
+  interpreter core is the bottleneck, confirmed.
+- ≈ the Phase-4 gate (~15fps w/ skip). Phase 4 (Thumb-2 dynarec) is a go.
+
 ## Bench 2026-07-12 c914e1f RevB (perf.log, fs=auto, FireRed intro+onboarding)
 Game            | emu ms (CPU+PPU) | 1bit+blit ms | upd/s | skips
 ----------------|------------------|--------------|-------|------
