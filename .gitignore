@@ -26,3 +26,5 @@ CLAUDE.local.md
 AGENTS.local.md
 
 .DS_Store
+tests/*.dSYM/
+tests/thumb2gen
