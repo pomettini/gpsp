@@ -106,6 +106,15 @@ static inline u32 t2_imm12(u32 v)
              ((s) << 4) | (rn),                                               \
              ((((imm12) >> 8) & 7) << 12) | ((rd) << 8) | ((imm12) & 0xFF))   \
 
+/* ADDW/SUBW: plain 12-bit immediate (0..4095), no flags. For addresses. */
+#define t2_addw(rd, rn, imm)                                                  \
+  t2_write32(0xF200 | ((((imm) >> 11) & 1) << 10) | (rn),                     \
+             ((((imm) >> 8) & 7) << 12) | ((rd) << 8) | ((imm) & 0xFF))       \
+
+#define t2_subw(rd, rn, imm)                                                  \
+  t2_write32(0xF2A0 | ((((imm) >> 11) & 1) << 10) | (rn),                     \
+             ((((imm) >> 8) & 7) << 12) | ((rd) << 8) | ((imm) & 0xFF))       \
+
 /* --- Data processing, shifted register ------------------------------------
  * shift = 0..31, type = T2SHIFT_*. */
 #define t2_dp_reg(op, s, rd, rn, rm, type, shift)                             \

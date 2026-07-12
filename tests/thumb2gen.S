@@ -67,4 +67,6 @@ b4:
   blt.w b4 - 64
 b5:
   b.w b5 - 1024
+  addw r0, r1, #4095
+  subw r2, r3, #0x8D0
   nop

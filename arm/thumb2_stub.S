@@ -573,6 +573,32 @@ thumb_label(ext_store_oam_ram_u##store_type)                                 ;\
 thumb_label(ext_store_ignore)
   bx lr                                   @ return
 
+@ SWI 6/7 division (HLE): guest r0/r1 live in x0/x1 (same slot in both ARM
+@ and Thumb allocations). Quotient -> r0, remainder -> r1, abs(quotient) ->
+@ r3. Uses the hardware SDIV (the ARM backend emits an unrolled divider).
+@ divarm (SWI 7) takes the operands swapped.
+
+defsymbl(t2_hle_divarm)
+  mov r2, reg_x0
+  mov reg_x0, reg_x1
+  mov reg_x1, r2
+defsymbl(t2_hle_div)
+  save_flags()
+  sdiv r0, reg_x0, reg_x1                 @ r0 = quotient
+  mls r1, r0, reg_x1, reg_x0              @ r1 = remainder
+  mov reg_x0, r0
+  mov reg_x1, r1
+  eor r2, r0, r0, asr #31                 @ r2 = abs(quotient)...
+  sub r2, r2, r0, asr #31                 @ ...branchless
+  str r2, [reg_base, #REG_R3]             @ guest r3 (memory slot)
+  ldr r1, [reg_base, #REG_CPSR]
+  tst r1, #0x20                           @ Thumb guest: r3 is cached in x3
+  it ne
+  movne reg_x3, r2
+  restore_flags()
+  bx lr
+.size t2_hle_div, .-t2_hle_div
+
 #define store_lookup_table(store_type)                                       ;\
   .word ext_store_ignore                  /*   -1: ignore, for > 0x0F      */;\
   .word ext_store_ignore                  /* 0x00: BIOS, ignore            */;\

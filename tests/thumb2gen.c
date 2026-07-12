@@ -72,6 +72,8 @@ int main(void)
   { u8 *from = translation_ptr; t2_b_cond_w(from, from - 64, T2_CC_LT); }
   { u8 *from = translation_ptr; t2_b_w(from, from - 1024); }
 
+  t2_addw(0, 1, 4095);                                 /* addw r0, r1, #4095 */
+  t2_subw(2, 3, 0x8D0);                                /* subw r2, r3, #0x8D0 */
   t2_nop();                                            /* final pad, keeps .text 4-aligned */
 
   fwrite(buf, 1, translation_ptr - buf, stdout);

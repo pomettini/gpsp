@@ -17,8 +17,13 @@ void pd_filestream_init(PlaydateAPI *pd);
 #ifdef TARGET_PLAYDATE
 extern PlaydateAPI *pd_syscalls_pd;
 #endif
+#ifdef HAVE_DYNAREC
+/* cpu_threaded.c calls this after each emit (whole-cache clearICache). */
+extern void (*thumb2_cache_sync_cb)(void);
+#endif
 
 /* Globals the core expects the frontend to define (libretro.c upstream). */
+int dynarec_enable = 0;
 u32 skip_next_frame = 0;
 boot_mode selected_boot_mode = boot_game;
 int sprite_limit = 1;
@@ -422,8 +427,17 @@ static int update(void *userdata)
    * (page-eviction protection) exactly like the libretro loop. */
   t0 = pd->system->getCurrentTimeMilliseconds();
   skip_next_frame = skip;
-  clear_gamepak_stickybits();
-  execute_arm(execute_cycles);
+#ifdef HAVE_DYNAREC
+  if (dynarec_enable)
+  {
+    execute_arm_translate(execute_cycles);
+  }
+  else
+#endif
+  {
+    clear_gamepak_stickybits();
+    execute_arm(execute_cycles);
+  }
   t1 = pd->system->getCurrentTimeMilliseconds();
 
   /* Keep the audio ring drained (samples discarded until Phase 3). */
@@ -500,6 +514,11 @@ int eventHandler(PlaydateAPI *playdate, PDSystemEvent event, uint32_t arg)
       gba_screen_pixels = screen_pixels;
       libretro_supports_bitmasks = true;
       retro_set_input_state(pd_input_state);
+
+#ifdef HAVE_DYNAREC
+      thumb2_cache_sync_cb = pd->system->clearICache;
+      dynarec_enable = 1;
+#endif
 
       init_gamepak_buffer();
       init_sound();

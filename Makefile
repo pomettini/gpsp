@@ -49,6 +49,9 @@ UASRC =
 # PD_SHELL_AUDIO: the shell owns the per-frame render_gbc_sound() call
 # (currently skipped entirely — samples are discarded until Phase 3 audio).
 UDEFS = -DROM_BUFFER_SIZE=8 -DPD_SHELL_AUDIO
+UADEFS =
+ULIBDIR =
+ULIBS =
 
 # make BENCH=1: scripted-input benchmark build (pd-playbench). The script
 # comes from /Shared/Emulation/gba/bench_script.txt if present, else the
@@ -69,11 +72,11 @@ endif
 # SMALL_TRANSLATION_CACHE: 2MB ROM + 384KB RAM caches (16MB budget).
 ifeq ($(DYNAREC),1)
 UDEFS += -DHAVE_DYNAREC -DTHUMB2_ARCH -DSMALL_TRANSLATION_CACHE
+# The stub reserves the translation caches in .bss: the assembler must see
+# the same cache-size defines as the C side (ADEFS != DEFS in common.mk).
+UADEFS += -DHAVE_DYNAREC -DTHUMB2_ARCH -DSMALL_TRANSLATION_CACHE
 SRC += cpu_threaded.c
 endif
-UADEFS =
-ULIBDIR =
-ULIBS =
 
 include $(SDK)/C_API/buildsupport/common.mk
 

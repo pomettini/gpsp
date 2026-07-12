@@ -76,6 +76,15 @@ M-profile deltas found reading arm_stub.S (they change the emitted ABI):
 
 Porting checklist (order of work):
 
+Progress: encoders DONE (GAS-roundtrip tested, tests/thumb2gen.c),
+stub DONE (assembles, disasm-verified, includes SDIV-based SWI 6/7 HLE),
+emitter DONE (compiles+links under DYNAREC=1: 478KB text / 4.08MB bss with
+the small caches), shell wired (dynarec_enable=1 in DYNAREC builds,
+clearICache hook). NOT yet executed on device — runtime bring-up next:
+homebrew first, then FireRed, then the bench script, expecting >2x.
+Multiply-long S-forms approximate N (lo31|hi31) — revisit only if a game
+misbehaves.
+
 1. `arm/thumb2_codegen.h` — T32 encoder primitives (write16-based):
    MOVW/MOVT (validated in pd_jit_smoke.c), data-proc reg/imm forms
    (modified-immediate encoding!), LDR/STR imm/reg, LDM/STM (T32 limits:
