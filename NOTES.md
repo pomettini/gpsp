@@ -13,9 +13,16 @@ upstream kept minimal, libretro build must keep working.
   in the simulator. Device binary links (232KB text / 18KB data / 1.20MB bss,
   matching the Phase-0 estimate) but is **not yet tested on hardware**.
   Audio is drained-and-discarded. Next: run on device, then wire audio.
-- Phase 2 (renderer): naive correct path done (per-pixel RGB565→lum→Bayer4x4→
-  1-bit in `render.c`); the LUT/packed fast path not started.
-- Phase 3 (profiling): not started.
+- Phase 2 (renderer): fast path done — 64KB RGB565→luminance LUT, Bayer 4x4,
+  8px→1byte packing (the 80px X offset is exactly byte 10), changed-row
+  detection with `markUpdatedRows`. Cost not yet measured on device.
+- Phase 3 (profiling): instrumentation in — per-update emu/blit ms accumulated
+  and appended to `perf.log` on the Data partition every 600 updates; grab the
+  file over the data disk. Frameskip implemented (System Menu: auto/off/1/2/3,
+  default auto = skip while the previous update ran over 20ms, max 3 in a row);
+  skipped frames bypass `update_scanline` and the blit entirely. Audio still
+  drained/discarded. The "Press Select" menu slot was dropped for Frameskip —
+  Select is crank-backward only now.
 - Phase 4 (Thumb-2 dynarec): gated on Phase 3 results.
 
 ## Phase 1 — decisions and findings
@@ -213,6 +220,32 @@ frameskip. Rejected alternative: running the emulated clock at 50/59.73×
 - `update_gba` assumes the shell calls `execute_arm(execute_cycles)` with the
   *global* `execute_cycles` (set by `init_main`/previous frame) — copy the
   libretro call shape exactly.
+
+### Device results (preliminary — not yet in the ms format below)
+
+- 2026-07-12, build bfa62fc, **Rev B**: FireRed boots and plays (menus
+  tested). **10–11 FPS** via drawFPS — full render every frame, no
+  frameskip, naive per-pixel blit, audio drained. That is ~90–100 ms per
+  frame all-in; the emu/PPU/blit split is unknown until the Phase 3
+  instrumentation lands. Stability beyond menus untested.
+
+### Path to 30 FPS (assessment after first device run)
+
+Rough math: 10.5 FPS ≈ 95 ms/frame. Even if render+blit were free,
+the interpreter alone likely sits at ~15-18 FPS. So:
+
+1. **Phase 2 renderer + frameskip** (fast LUT blit, skip PPU work on
+   skipped frames — `skip_next_frame` already gates `update_scanline`):
+   expected to land somewhere near 15-20 FPS rendered-at-25 with skip 1.
+   This should clear the Phase 4 gate (≥ ~15 FPS with frameskip).
+2. **Phase 3 instrumentation** decides where the remaining time goes
+   (written to `perf.log` on the device Data partition, retrievable over
+   the data disk — no serial console needed).
+3. **Phase 4 Thumb-2 dynarec is the real path to 30 FPS.** gpSP's dynarec
+   historically gives 2-4x over the interpreter on comparable cores; at
+   2.5x the CPU side plus frameskip, 30 FPS for mode-0 games is plausible.
+   Not a promise — it will be measured, and affine-heavy games stay out
+   of scope.
 
 ### Benchmark format (Phase 3 fills this in)
 

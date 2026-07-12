@@ -111,6 +111,15 @@ static void poll_crank_and_injections(void)
     select_frames--;
 }
 
+/* Perf accumulation, dumped to perf.log on the Data partition every
+ * PERF_WINDOW updates (retrieved over the data disk; no serial needed).
+ * Times in ms via getCurrentTimeMilliseconds (1ms granularity; the window
+ * totals are what matters). */
+#define PERF_WINDOW 600
+static u32 perf_updates, perf_rendered, perf_skipped;
+static u32 perf_emu_ms, perf_blit_ms, perf_window_start_ms;
+static u32 perf_emu_max_ms;
+
 /* --- Save RAM -------------------------------------------------------------
  * gamepak_backup (SRAM/Flash/EEPROM, 128KB) persists as <rom>.sav in the
  * Data folder. Written on terminate/lock/back-to-picker; the actual backup
@@ -211,20 +220,30 @@ static void start_menu_cb(void *userdata)
   start_frames = INJECT_FRAMES;
 }
 
-static void select_menu_cb(void *userdata)
+/* Frameskip: 0=auto (skip while running behind), 1=off, 2..4=fixed 1..3
+ * skipped frames per rendered one. Skipped frames bypass the PPU entirely
+ * (update_scanline returns on skip_next_frame) and the blit. */
+static int frameskip_mode = 0;
+static PDMenuItem *fs_item;
+static const char *fs_options[] = { "auto", "off", "1", "2", "3" };
+
+static void frameskip_menu_cb(void *userdata)
 {
   (void)userdata;
-  select_frames = INJECT_FRAMES;
+  frameskip_mode = pd->system->getMenuItemValue(fs_item);
 }
 
 static void rebuild_menu(int in_picker)
 {
   pd->system->removeAllMenuItems();
+  fs_item = NULL;
   if (!in_picker)
   {
     pd->system->addMenuItem("ROM Picker", rompicker_menu_cb, NULL);
     pd->system->addMenuItem("Press Start", start_menu_cb, NULL);
-    pd->system->addMenuItem("Press Select", select_menu_cb, NULL);
+    fs_item = pd->system->addOptionsMenuItem("Frameskip", fs_options, 5,
+                                             frameskip_menu_cb, NULL);
+    pd->system->setMenuItemValue(fs_item, frameskip_mode);
   }
 }
 
@@ -253,6 +272,9 @@ static void start_emulation(void)
   want_picker = 0;
   picker_active = 0;
   rebuild_menu(0);
+  perf_updates = perf_rendered = perf_skipped = 0;
+  perf_emu_ms = perf_blit_ms = perf_emu_max_ms = 0;
+  perf_window_start_ms = pd->system->getCurrentTimeMilliseconds();
   pd->system->logToConsole("gpsp: running %s", selected_rom);
 }
 
@@ -270,8 +292,72 @@ static void return_to_picker(void)
 
 /* --- Frame loop ----------------------------------------------------------- */
 
+static void perf_flush(u32 now)
+{
+  SDFile *f = pd->file->open("perf.log", kFileAppend);
+  if (f)
+  {
+    char line[200];
+    u32 wall = now - perf_window_start_ms;
+    int len = snprintf(line, sizeof(line),
+        "build %s %s | fs=%s | upd=%u rend=%u skip=%u | wall=%ums "
+        "| emu avg=%u.%02ums max=%ums | blit avg=%u.%02ums\n",
+        __DATE__, __TIME__, fs_options[frameskip_mode],
+        (unsigned)perf_updates, (unsigned)perf_rendered,
+        (unsigned)perf_skipped, (unsigned)wall,
+        (unsigned)(perf_emu_ms / perf_updates),
+        (unsigned)((perf_emu_ms * 100 / perf_updates) % 100),
+        (unsigned)perf_emu_max_ms,
+        (unsigned)(perf_rendered ? perf_blit_ms / perf_rendered : 0),
+        (unsigned)(perf_rendered ? (perf_blit_ms * 100 / perf_rendered) % 100 : 0));
+    pd->file->write(f, line, len);
+    pd->file->close(f);
+  }
+  perf_updates = perf_rendered = perf_skipped = 0;
+  perf_emu_ms = perf_blit_ms = perf_emu_max_ms = 0;
+  perf_window_start_ms = now;
+}
+
+/* Frameskip decision for this update. */
+static int decide_skip(u32 last_update_ms)
+{
+  static int skip_run;
+
+  if (frameskip_mode == 1) /* off */
+  {
+    skip_run = 0;
+    return 0;
+  }
+
+  if (frameskip_mode >= 2) /* fixed 1..3 */
+  {
+    int n = frameskip_mode - 1;
+    if (skip_run < n)
+    {
+      skip_run++;
+      return 1;
+    }
+    skip_run = 0;
+    return 0;
+  }
+
+  /* auto: skip while the previous update ran over the 20ms budget,
+   * capped at 3 consecutive skips so the screen never freezes. */
+  if (last_update_ms > 20 && skip_run < 3)
+  {
+    skip_run++;
+    return 1;
+  }
+  skip_run = 0;
+  return 0;
+}
+
 static int update(void *userdata)
 {
+  static u32 last_update_ms;
+  u32 t0, t1, t2;
+  int skip;
+
   (void)userdata;
 
   if (picker_active)
@@ -292,17 +378,39 @@ static int update(void *userdata)
   poll_crank_and_injections();
   update_input();
 
+  skip = decide_skip(last_update_ms);
+
   /* One emulated frame; interpreter path needs the sticky bits cleared
    * (page-eviction protection) exactly like the libretro loop. */
-  skip_next_frame = 0;
+  t0 = pd->system->getCurrentTimeMilliseconds();
+  skip_next_frame = skip;
   clear_gamepak_stickybits();
   execute_arm(execute_cycles);
+  t1 = pd->system->getCurrentTimeMilliseconds();
 
-  /* Keep the audio ring drained (samples discarded in Phase 1). */
+  /* Keep the audio ring drained (samples discarded until Phase 3). */
   sound_read_samples(audio_drain, AUDIO_DRAIN_FRAMES);
 
-  pd_render_frame(screen_pixels);
+  if (!skip)
+    pd_render_frame(screen_pixels);
+  t2 = pd->system->getCurrentTimeMilliseconds();
+
   pd->system->drawFPS(0, 0);
+
+  last_update_ms = t2 - t0;
+  perf_updates++;
+  perf_emu_ms += t1 - t0;
+  if (t1 - t0 > perf_emu_max_ms)
+    perf_emu_max_ms = t1 - t0;
+  if (skip)
+    perf_skipped++;
+  else
+  {
+    perf_rendered++;
+    perf_blit_ms += t2 - t1;
+  }
+  if (perf_updates >= PERF_WINDOW)
+    perf_flush(t2);
 
 #ifdef TARGET_SIMULATOR
   /* Headless-verification hook: dump the raw RGB565 frame a few times so
