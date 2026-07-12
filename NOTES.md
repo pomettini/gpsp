@@ -23,7 +23,22 @@ upstream kept minimal, libretro build must keep working.
   skipped frames bypass `update_scanline` and the blit entirely. Audio still
   drained/discarded. The "Press Select" menu slot was dropped for Frameskip —
   Select is crank-backward only now.
-- Phase 4 (Thumb-2 dynarec): gated on Phase 3 results.
+- Phase 4 (Thumb-2 dynarec): **GO — smoke test passed on device 2026-07-12**
+  (build ad5b936). Facts established on the Rev B:
+  - Main RAM (.bss, PSRAM 0x90xxxxxx) is executable from user code.
+  - `pd->system->clearICache()` alone keeps emitted code coherent (test B:
+    in-place re-emit + clearICache, no D-eviction, executed the NEW code) —
+    the whole cache story is one call after emit.
+  - Emitted→C calls via MOVW/MOVT+BLX work; encoders in pd_jit_smoke.c.
+  - Direct SCB cache ops (0xE000EFxx) BusFault — user code is unprivileged.
+    Never touch them; clearICache is the only sanctioned path.
+  - Translation caches must be static buffers (no mmap): SMALL_TRANSLATION_
+    CACHE (2MB ROM + 384KB RAM) fits — crashlog showed 9.9MB heap allocated,
+    ~1.3MB bss, leaving ~2.5MB headroom on the 16MB budget.
+  Next: model the backend on arm/arm_emit.h + arm_stub.S (ARMv6/7 is the
+  closest register-pressure match), everything emits Thumb-2 (no ARM state;
+  IT blocks or short branches replace conditional execution), function
+  pointers carry the Thumb bit.
 
 ## Phase 1 — decisions and findings
 
