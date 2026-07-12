@@ -256,6 +256,19 @@ Game            | emu ms | ppu ms | 1bit+blit ms | audio ms | total ms | skips
 Wario Land 4    |        |        |              |          |          |
 ```
 
+## Bench 2026-07-12 c914e1f RevB (perf.log, fs=auto, FireRed intro+onboarding)
+Game            | emu ms (CPU+PPU) | 1bit+blit ms | upd/s | skips
+----------------|------------------|--------------|-------|------
+Pokemon FireRed | 60-80 (max 242)  | 3.5-3.65     | 13-16 | 448-450/600
+
+- "emu" is execute_arm inclusive: CPU interpreter + PPU on the 1-of-4
+  rendered frames + PSG mixing. Blit is solved (3.6ms, was the naive path's
+  cost). Game speed ≈ 22-27% real time — frameskip cannot fix game speed,
+  only render rate; the CPU side must get ~3x faster for 30 FPS.
+- Conclusion: at/near the Phase-4 gate (13-16 fps w/ skip). Next: strip the
+  discarded PSG mixing out of the frame (pure waste until audio output
+  exists), try -O3 on cpu.o, re-measure; then start the Thumb-2 dynarec.
+
 Numbers in ms per frame, measured on device with `pd->system->getElapsedTime`
 deltas averaged over ≥10s of gameplay (not menus). Never fps, never simulator.
 

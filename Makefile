@@ -43,7 +43,9 @@ SRC_XX = cpu.cc video.cc bios_data.S
 UINCDIR = libretro libretro/libretro-common/include pd-rom-picker/src
 UASRC =
 # Interpreter-only build (no HAVE_DYNAREC). 8MB ROM page cache, see NOTES.md.
-UDEFS = -DROM_BUFFER_SIZE=8
+# PD_SHELL_AUDIO: the shell owns the per-frame render_gbc_sound() call
+# (currently skipped entirely — samples are discarded until Phase 3 audio).
+UDEFS = -DROM_BUFFER_SIZE=8 -DPD_SHELL_AUDIO
 UADEFS =
 ULIBDIR =
 ULIBS =
@@ -68,7 +70,7 @@ $(OBJDIR)/pdex.elf: $(EXTRA_OBJS)
 # (clang picks the language per extension). The duplicate-recipe warning
 # from make is expected.
 $(OBJDIR)/pdex.${DYLIB_EXT}: $(SRC) $(SRC_XX) | MKOBJDIR
-	$(SIMCOMPILER) $(DYLIB_FLAGS) -lm -DTARGET_SIMULATOR=1 -DTARGET_EXTENSION=1 $(INCDIR) -o $@ $(SRC) $(SRC_XX)
+	$(SIMCOMPILER) $(DYLIB_FLAGS) -lm -DTARGET_SIMULATOR=1 -DTARGET_EXTENSION=1 $(UDEFS) $(INCDIR) -o $@ $(SRC) $(SRC_XX)
 
 CXX = $(GCC)$(TRGT)g++ -g3
 # CPFLAGS minus C-only warnings, plus freestanding C++.
@@ -77,8 +79,9 @@ CXXFLAGS = $(MCFLAGS) $(OPT) -gdwarf-2 -Wall -Wno-unused -Wno-unknown-pragmas \
            -ffunction-sections -fdata-sections $(DEFS) \
            -fno-exceptions -fno-rtti -fno-threadsafe-statics
 
+# -O3 on the interpreter: measured on device before/after (see NOTES.md).
 $(OBJDIR)/cpu.o: cpu.cc | MKOBJDIR MKDEPDIR
-	$(CXX) -c $(CXXFLAGS) -MD -MP -MF $(DEPDIR)/$(@F).d -I . $(INCDIR) $< -o $@
+	$(CXX) -c $(filter-out -O2,$(CXXFLAGS)) -O3 -MD -MP -MF $(DEPDIR)/$(@F).d -I . $(INCDIR) $< -o $@
 
 $(OBJDIR)/video.o: video.cc | MKOBJDIR MKDEPDIR
 	$(CXX) -c $(CXXFLAGS) -MD -MP -MF $(DEPDIR)/$(@F).d -I . $(INCDIR) $< -o $@

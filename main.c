@@ -230,7 +230,11 @@ u32 function_cc update_gba(int remaining_cycles)
           flush_ram_count = 0;
 
           // Force audio generation. Need to flush samples for this frame.
+          // PD_SHELL_AUDIO (Playdate): the shell owns this call instead, so
+          // it can be timed and skipped while no audio output exists.
+#ifndef PD_SHELL_AUDIO
           render_gbc_sound();
+#endif
 
           // We completed a frame, tell the dynarec to exit to the main thread
           frame_complete = 0x80000000;
