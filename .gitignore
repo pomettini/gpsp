@@ -8,3 +8,13 @@ tags
 cscope.out
 pandora/linux
 tools/generate_cc_lut
+
+# Claude
+.claude/
+CLAUDE.local.md
+
+# Codex
+.codex/
+AGENTS.local.md
+
+.DS_Store
