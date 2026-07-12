@@ -62,6 +62,18 @@ Facts about the existing backend that shape the port:
   are 2MB+384KB adjacent in .bss, all in range. `write32(value)` emits ARM
   words; T32 needs `write16` pairs, first halfword first.
 
+M-profile deltas found reading arm_stub.S (they change the emitted ABI):
+
+- No CPSR on Cortex-M: `mrs reg_flags, cpsr` / `msr cpsr_f, reg_flags`
+  become `mrs rX, apsr` / `msr apsr_nzcvq, rX`.
+- `return_add()` (`add pc, lr, #4`, skipping a PC-literal placed after the
+  emitted BL) does not port: T32 forbids that PC write and LR carries the
+  Thumb bit. Deviation: the Thumb-2 emitter passes the guest PC in r0 via
+  MOVW/MOVT *before* the BL (no inline literal), stubs return with plain
+  `bx lr`. +4 bytes per call site, zero LR arithmetic.
+- `stmne`/conditional sequences → IT/ITT blocks (store_registers_cond etc.).
+- `extract_u16` → `uxth` (fine on M7).
+
 Porting checklist (order of work):
 
 1. `arm/thumb2_codegen.h` — T32 encoder primitives (write16-based):
