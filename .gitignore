@@ -9,6 +9,13 @@ cscope.out
 pandora/linux
 tools/generate_cc_lut
 
+# Playdate build
+build/
+gpsp.pdx/
+Source/pdex.*
+Source/*.gba
+Source/*.sav
+
 # Claude
 .claude/
 CLAUDE.local.md

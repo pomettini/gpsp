@@ -1,0 +1,5 @@
+name=gpSP
+author=Giorgio Pomettini
+description=GBA emulator for Playdate
+bundleID=com.pomettini.gpsp
+imagePath=

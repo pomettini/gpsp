@@ -8,10 +8,55 @@ upstream kept minimal, libretro build must keep working.
 ## Status
 
 - **Phase 0 (survey): done** — this document.
-- Phase 1 (interpreter port): not started.
-- Phase 2 (renderer): not started.
+- **Phase 1 (interpreter port): simulator milestone done** — Pokémon FireRed
+  (16MB, exercises ROM paging past the 8MB cache) and homebrew boot and run
+  in the simulator. Device binary links (232KB text / 18KB data / 1.20MB bss,
+  matching the Phase-0 estimate) but is **not yet tested on hardware**.
+  Audio is drained-and-discarded. Next: run on device, then wire audio.
+- Phase 2 (renderer): naive correct path done (per-pixel RGB565→lum→Bayer4x4→
+  1-bit in `render.c`); the LUT/packed fast path not started.
 - Phase 3 (profiling): not started.
 - Phase 4 (Thumb-2 dynarec): gated on Phase 3 results.
+
+## Phase 1 — decisions and findings
+
+- **Builds**: root `Makefile` → `gpsp.pdx` (device+simulator);
+  libretro build renamed to `Makefile.libretro` (verified still builds:
+  `make -f Makefile.libretro`). `cpu.cc`/`video.cc` are templated C++ and
+  compile with `arm-none-eabi-g++ -fno-exceptions -fno-rtti
+  -fno-threadsafe-statics`; everything new is C.
+- **Shell files**: `playdate_main.c` (lifecycle, input callback, save RAM,
+  frame loop), `render.c` (blit), `pd_filestream.c` (libretro VFS API on
+  `pd->file`, core untouched), `pd_syscalls.c` (newlib stubs; `_gettimeofday`
+  maps the Playdate clock +946684800 so the emulated RTC works),
+  `rom_picker_unit.c` (pd-rom-picker submodule glue).
+- **BIOS**: always the embedded open BIOS — the shell MUST
+  `memcpy(bios_rom, open_gba_bios_rom, 16KB)` before `reset_gba()`.
+  Forgetting it = guest falls into open-bus, whose handler recurses
+  `read_memory32` until stack overflow (found the hard way with FireRed;
+  homebrew that never SWIs boots fine without it).
+- **Frame pacing (interim)**: display at 50Hz, exactly one emulated frame
+  per update callback → ~84% speed (50/59.73). Correctness-first choice;
+  Phase 3 revisits (options: catch-up second frame every ~6 updates, or
+  frameskip-driven). Audio is discarded so pitch is moot for now.
+- **Start/Select**: crank flick forward ≥45° = Start (8-frame press), flick
+  backward = Select; plus System Menu items "Press Start"/"Press Select".
+  L/R still unmapped (crank-hold proposal stands, revisit when a game
+  needs it).
+- **Save RAM**: whole 128KB `gamepak_backup` written as `<rom>.sav` to the
+  Data folder on terminate/lock/low-power/back-to-picker.
+- **ROMs**: picker scans `/Shared/Emulation/gba/games/` (`.gba`/`.agb`);
+  a bundled `Source/test.gba` (git-ignored) boots directly for dev.
+- **Simulator gotchas**: the sim build must be `-O2` (interpreter's
+  macro-expanded frames overflow the sim thread stack at `-O0`); SDK
+  `common.mk` expands rule prerequisites at include time, so extra objects
+  ride in via `ULIBS` + an added prerequisite line; never pass `ASFLAGS` to
+  a `.S` rule (its `-Wa,-amhls=$(<:.s=.lst)` doesn't substitute capital `.S`
+  and overwrites the source with the listing).
+- **Headless verification**: `TARGET_SIMULATOR` builds dump raw RGB565
+  frames (100/300/600) to the Data folder; convert offline to inspect.
+  Simulator also echoes `logToConsole` to stdout when launched from a
+  terminal.
 
 ---
 
