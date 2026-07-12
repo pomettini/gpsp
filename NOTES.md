@@ -40,6 +40,51 @@ upstream kept minimal, libretro build must keep working.
   IT blocks or short branches replace conditional execution), function
   pointers carry the Thumb bit.
 
+## Phase 4 workplan (from the study pass of the ARM backend)
+
+Facts about the existing backend that shape the port:
+
+- `cpu_threaded.c` selects the backend by arch define (`ARM_ARCH` →
+  `arm/arm_emit.h`); only ~7 `generate_*` entry points cross the boundary —
+  the backend's ~364 macros are self-contained. New define: `THUMB2_ARCH` →
+  `arm/thumb2_emit.h` (one small upstream diff in the include ladder).
+- `arm_stub.S` also DEFINES the guest arrays (ewram/iwram/vram/reg/...) and
+  the translation caches as static .bss (`defsymbl`) — no mmap anywhere on
+  the ARM path. The Thumb-2 stub keeps that layout; `memmap.c` stays unused.
+- Register conventions port 1:1 to Thumb-2 (all are r0-r14 usable in T32):
+  r3-r8 = allocatable x0-x5, r0-r2 = args/temps, r9 = flags/scratch0,
+  r11 = reg_base, r12 = cycles, r14 = rs temp.
+- `platform_cache_sync(base, end)` is the per-emit cache hook → calls
+  `pd->system->clearICache()` via an extern function pointer set by the
+  shell (proven coherent by smoke test B; cpu_threaded.c cannot include
+  pd_api.h).
+- Branch reach: T32 B.W/BL ±16MB, conditional B.W ±1MB — translation caches
+  are 2MB+384KB adjacent in .bss, all in range. `write32(value)` emits ARM
+  words; T32 needs `write16` pairs, first halfword first.
+
+Porting checklist (order of work):
+
+1. `arm/thumb2_codegen.h` — T32 encoder primitives (write16-based):
+   MOVW/MOVT (validated in pd_jit_smoke.c), data-proc reg/imm forms
+   (modified-immediate encoding!), LDR/STR imm/reg, LDM/STM (T32 limits:
+   no writeback+base-in-list), B.W/BL/B<cond>.W fixups, IT.
+2. `arm/thumb2_stub.S` — port of arm_stub.S in `.syntax unified` `.thumb`:
+   every `defsymbl` code symbol needs `.thumb_func`; ARM conditional
+   sequences → IT blocks; keep the data section verbatim.
+3. `arm/thumb2_emit.h` — port of arm_emit.h on top of (1): conditional
+   emission macros wrap an IT or a short branch-around; ARM's
+   `arm_relative_offset` (imm24, -8 pipeline) → T32 branch encoder (-4).
+4. Makefile `DYNAREC=1`: `-DHAVE_DYNAREC -DTHUMB2_ARCH`, adds
+   cpu_threaded.c + thumb2_stub.S. Default OFF until bring-up completes.
+5. Bring-up ladder (each step measured with the bench script):
+   a. DYNAREC=1 build compiles, `dynarec_enable=0` → behaves as today.
+   b. Homebrew tetris boots with dynarec on.
+   c. FireRed boots and plays.
+   d. Bench: expect >2x on avg_frame_ms; record in the bench table.
+6. After correctness: idle-loop elimination (gba_over already provides
+   per-game `idle_loop_target_pc` — dynarec-only feature, big Pokémon win),
+   then ITCM placement experiments per the vecx guide.
+
 ## Phase 1 — decisions and findings
 
 - **Builds**: root `Makefile` → `gpsp.pdx` (device+simulator);

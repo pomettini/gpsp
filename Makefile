@@ -62,6 +62,15 @@ endif
 ifeq ($(JITSMOKE),1)
 UDEFS += -DPD_JIT_SMOKE
 endif
+
+# make DYNAREC=1: Thumb-2 dynarec (Phase 4, arm/thumb2_emit.h). DEVICE
+# ONLY (the simulator host can't run Thumb-2). Fails to build until the
+# backend port is complete - see NOTES.md workplan.
+# SMALL_TRANSLATION_CACHE: 2MB ROM + 384KB RAM caches (16MB budget).
+ifeq ($(DYNAREC),1)
+UDEFS += -DHAVE_DYNAREC -DTHUMB2_ARCH -DSMALL_TRANSLATION_CACHE
+SRC += cpu_threaded.c
+endif
 UADEFS =
 ULIBDIR =
 ULIBS =
@@ -79,8 +88,14 @@ SIMCOMPILER = clang -g -O2
 # include time, so the extra objects ride in via ULIBS (link line) plus an
 # explicit prerequisite line (build order).
 EXTRA_OBJS = $(OBJDIR)/cpu.o $(OBJDIR)/video.o $(OBJDIR)/bios_data.o
+ifeq ($(DYNAREC),1)
+EXTRA_OBJS += $(OBJDIR)/thumb2_stub.o
+endif
 ULIBS += $(EXTRA_OBJS)
 $(OBJDIR)/pdex.elf: $(EXTRA_OBJS)
+
+$(OBJDIR)/thumb2_stub.o: arm/thumb2_stub.S | MKOBJDIR MKDEPDIR
+	$(AS) -c $(MCFLAGS) $(ADEFS) -Wa,-amhls=$(OBJDIR)/thumb2_stub.lst $< -o $@
 
 # Simulator: redefine the dylib recipe so the .cc/.S TUs are compiled in
 # (clang picks the language per extension). The duplicate-recipe warning

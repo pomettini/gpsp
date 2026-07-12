@@ -214,6 +214,8 @@ typedef struct
 /* Include the right emitter headers */
 #if defined(MIPS_ARCH)
   #include "mips/mips_emit.h"
+#elif defined(THUMB2_ARCH)
+  #include "arm/thumb2_emit.h"
 #elif defined(ARM_ARCH)
   #include "arm/arm_emit.h"
 #elif defined(ARM64_ARCH)
@@ -242,6 +244,15 @@ typedef struct
   #include "3ds/3ds_utils.h"
   void platform_cache_sync(void *baseaddr, void *endptr) {
     ctr_flush_invalidate_cache();
+  }
+#elif defined(THUMB2_ARCH)
+  /* Playdate: user code is unprivileged (no SCB access); the shell installs
+   * pd->system->clearICache here, proven coherent for fresh code (NOTES.md
+   * Phase 4). Range is ignored - the OS call is whole-cache. */
+  void (*thumb2_cache_sync_cb)(void) = 0;
+  void platform_cache_sync(void *baseaddr, void *endptr) {
+    if (thumb2_cache_sync_cb)
+      thumb2_cache_sync_cb();
   }
 #elif defined(ARM_ARCH) || defined(ARM64_ARCH)
   void platform_cache_sync(void *baseaddr, void *endptr) {
