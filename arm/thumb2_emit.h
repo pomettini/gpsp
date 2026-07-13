@@ -507,6 +507,13 @@ u32 thumb_prepare_load_reg_pc(u8 **tptr, u32 scratch_reg, u32 reg_index, u32 pc_
 
 #define block_prologue_size 0
 #define generate_block_prologue()
+
+/* T32 emits 16-bit forms, so a block can end 2-byte aligned; the frontend
+ * writes 8-byte block headers into the stream with STRD (4-byte alignment
+ * required on M7). Re-align at every block boundary. */
+#define align_translation_ptr()                                               \
+  translation_ptr = (u8 *)(((uintptr_t)translation_ptr + 3) & ~(uintptr_t)3)
+
 #define generate_block_extra_vars_arm()
 #define generate_block_extra_vars_thumb()
 

@@ -224,6 +224,13 @@ typedef struct
   #include "x86/x86_emit.h"
 #endif
 
+/* Backends whose instructions are not all 4 bytes (Thumb-2) re-align the
+ * emission cursor at block boundaries: the block headers written below with
+ * u32/u64 stores require it. No-op elsewhere. */
+#ifndef align_translation_ptr
+#define align_translation_ptr()
+#endif
+
 /* Cache invalidation */
 
 #if defined(PSP)
@@ -3163,6 +3170,7 @@ bool translate_block_arm(u32 pc, bool ram_region)
     }
   }
 
+  align_translation_ptr();
   if (ram_region)
     ram_translation_ptr = translation_ptr;
   else
@@ -3320,6 +3328,7 @@ bool translate_block_thumb(u32 pc, bool ram_region)
     }
   }
 
+  align_translation_ptr();
   if (ram_region)
     ram_translation_ptr = translation_ptr;
   else
