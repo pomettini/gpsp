@@ -239,11 +239,13 @@ defsymbl(arm_update_gba_##name)                                              ;\
   load_registers_arm()                    /* load ARM regs                 */;\
   call_c_function(block_lookup_address_arm)                                  ;\
   restore_flags()                                                            ;\
+  orr r0, r0, #1                          /* Thumb bit for block entry   */;\
   bx r0                                   /* jump to new ARM block         */;\
 2:                                                                           ;\
   load_registers_thumb()                  /* load Thumb regs               */;\
   call_c_function(block_lookup_address_thumb)                                ;\
   restore_flags()                                                            ;\
+  orr r0, r0, #1                          /* Thumb bit for block entry   */;\
   bx r0                                   /* jump to new Thumb block       */;\
 .size arm_update_gba_##name, .-arm_update_gba_##name
 
@@ -279,12 +281,14 @@ defsymbl(arm_indirect_branch_arm)
   save_flags()
   call_c_function(block_lookup_address_arm)
   restore_flags()
+  orr r0, r0, #1                          @ Thumb bit for block entry
   bx r0
 
 defsymbl(arm_indirect_branch_thumb)
   save_flags()
   call_c_function(block_lookup_address_thumb)
   restore_flags()
+  orr r0, r0, #1                          @ Thumb bit for block entry
   bx r0
 
 defsymbl(arm_indirect_branch_dual_arm)
@@ -294,6 +298,7 @@ defsymbl(arm_indirect_branch_dual_arm)
   add r0, #2                              @ two LSB are cleared after
   call_c_function(block_lookup_address_arm)
   restore_flags()
+  orr r0, r0, #1                          @ Thumb bit for block entry
   bx r0                                   @ keep executing arm code
 1:
   store_registers_arm()                   @ save out ARM registers
@@ -303,6 +308,7 @@ defsymbl(arm_indirect_branch_dual_arm)
   str r1, [reg_base, #REG_CPSR]           @ store flags
   call_c_function(block_lookup_address_thumb)
   restore_flags()
+  orr r0, r0, #1                          @ Thumb bit for block entry
   bx r0
 .size arm_indirect_branch_dual_arm, .-arm_indirect_branch_dual_arm
 
@@ -312,6 +318,7 @@ defsymbl(arm_indirect_branch_dual_thumb)
   beq 1f                                  @ if clear going to ARM mode
   call_c_function(block_lookup_address_thumb)
   restore_flags()
+  orr r0, r0, #1                          @ Thumb bit for block entry
   bx r0                                   @ keep executing thumb code
 1:
   store_registers_thumb()                 @ save out Thumb registers
@@ -322,6 +329,7 @@ defsymbl(arm_indirect_branch_dual_thumb)
   add r0, #2                              @ two LSB are cleared after
   call_c_function(block_lookup_address_arm)
   restore_flags()
+  orr r0, r0, #1                          @ Thumb bit for block entry
   bx r0
 .size arm_indirect_branch_dual_thumb, .-arm_indirect_branch_dual_thumb
 
@@ -363,6 +371,7 @@ defsymbl(execute_store_cpsr)
 1:
   call_c_function(block_lookup_address_arm)
   restore_flags()
+  orr r0, r0, #1                          @ Thumb bit for block entry
   bx r0                                   @ return to PC ARM address
 .size execute_store_cpsr, .-execute_store_cpsr
 
@@ -394,12 +403,14 @@ defsymbl(execute_spsr_restore)
 2:
   call_c_function(block_lookup_address_arm)
   restore_flags()
+  orr r0, r0, #1                          @ Thumb bit for block entry
   bx r0
 
 1:
   load_registers_thumb()                  @ load Thumb registers
   call_c_function(block_lookup_address_thumb)
   restore_flags()
+  orr r0, r0, #1                          @ Thumb bit for block entry
   bx r0
 
 @ Setup the mode transition work for calling an SWI.
@@ -749,12 +760,14 @@ cpu_sleep_loop:
   call_c_function(block_lookup_address_arm)
   load_registers_arm()
   extract_flags()
+  orr r0, r0, #1                          @ Thumb bit for block entry
   bx r0                                   @ jump to new ARM block
 
 2:
   call_c_function(block_lookup_address_thumb)
   load_registers_thumb()
   extract_flags()
+  orr r0, r0, #1                          @ Thumb bit for block entry
   bx r0                                   @ jump to new Thumb block
 
 resume_pc:
@@ -767,10 +780,12 @@ resume_pc:
 
   call_c_function(block_lookup_address_thumb)
   restore_flags()
+  orr r0, r0, #1                          @ Thumb bit for block entry
   bx r0                                   @ jump to new Thumb block
 1:
   call_c_function(block_lookup_address_arm)
   restore_flags()
+  orr r0, r0, #1                          @ Thumb bit for block entry
   bx r0                                   @ jump to new ARM block
 
 lookup_pc:
@@ -783,11 +798,13 @@ lookup_pc:
   call_c_function(block_lookup_address_thumb)
   load_registers_thumb()
   extract_flags()
+  orr r0, r0, #1                          @ Thumb bit for block entry
   bx r0                                   @ jump to new Thumb block
 2:
   call_c_function(block_lookup_address_arm)
   load_registers_arm()
   extract_flags()
+  orr r0, r0, #1                          @ Thumb bit for block entry
   bx r0                                   @ jump to new ARM block
 
 @ T32 register-offset loads only allow LSL; addresses are pre-masked with
