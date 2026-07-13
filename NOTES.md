@@ -372,6 +372,14 @@ Game            | emu ms | ppu ms | 1bit+blit ms | audio ms | total ms | skips
 Wario Land 4    |        |        |              |          |          |
 ```
 
+## Bench 2026-07-13 f564655 RevB (DYNAREC first run, Tetris homebrew, bundled script)
+avg_frame_ms=17.37 best=4 worst=37 | est fps=57.58 | skipped 1142/2300
+
+- FIRST EXECUTION of the Thumb-2 dynarec: full 2300-frame scripted run,
+  zero crashes (boot, BIOS SWIs, IRQs, memory handlers, gameplay all
+  exercised). Not comparable to the FireRed interpreter baseline (different
+  game) - FireRed dynarec run is next.
+
 ## Bench 2026-07-12 15d5c3b RevB (pd-playbench, bundled FireRed intro script)
 avg_frame_ms=68.68 best=16 worst=263 | est fps=14.56 | skipped 1694/2300 (74%)
 
