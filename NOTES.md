@@ -372,6 +372,19 @@ Game            | emu ms | ppu ms | 1bit+blit ms | audio ms | total ms | skips
 Wario Land 4    |        |        |              |          |          |
 ```
 
+## Bench 2026-07-13 7bff380 RevB (DYNAREC, FireRed, bundled script)
+avg_frame_ms=27.71 best=12 worst=112 | est fps=36.09 | skipped 1465/2300
+
+- **2.48x over the interpreter baseline** (68.68ms -> 27.71ms), full script,
+  no crashes. Same-script head-to-head, same game, same device.
+- Crash on the first attempt: frontend writes 8-byte block headers with
+  STRD into the translation stream; T32's 16-bit forms can leave the
+  cursor 2-aligned -> UsageFault (UNALIGNED). Fixed: align_translation_ptr()
+  at block boundaries (backend-provided macro, no-op for other backends).
+- worst=112ms spikes = translation bursts (cold cache) - expected.
+- Next levers: idle-loop elimination (dynarec-only, big for Pokemon),
+  -O3/ITCM experiments, then audio.
+
 ## Bench 2026-07-13 f564655 RevB (DYNAREC first run, Tetris homebrew, bundled script)
 avg_frame_ms=17.37 best=4 worst=37 | est fps=57.58 | skipped 1142/2300
 
