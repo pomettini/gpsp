@@ -467,6 +467,57 @@ static int update(void *userdata)
   if (perf_updates >= PERF_WINDOW)
     perf_flush(t2);
 
+#if defined(TARGET_SIMULATOR) && defined(HAVE_DYNAREC)
+  /* Translation-dump harness: the translator is pure C, so the host build
+   * can translate real guest blocks; the emitted Thumb-2 is dumped (never
+   * executed) and disassembled offline. See NOTES.md Phase 4. */
+  {
+    extern u8 rom_translation_cache[];
+    extern u8 *rom_translation_ptr;
+    u8 *block_lookup_address_arm(u32 gpc);
+    u8 *block_lookup_address_thumb(u32 gpc);
+    static int jit_dumped;
+    static int jit_frames;
+
+    if (!jit_dumped && ++jit_frames == 300)
+    {
+      u8 *entry = block_lookup_address_arm(0x08000000);
+      u8 *cur;
+      char msg[120];
+      SDFile *f;
+
+      if (reg[REG_CPSR] & 0x20)
+        cur = block_lookup_address_thumb(reg[REG_PC]);
+      else
+        cur = block_lookup_address_arm(reg[REG_PC]);
+
+      f = pd->file->open("jitdump.bin", kFileWrite);
+      if (f)
+      {
+        pd->file->write(f, rom_translation_cache,
+                        (unsigned int)(rom_translation_ptr -
+                                       rom_translation_cache));
+        pd->file->close(f);
+      }
+      f = pd->file->open("jitdump.txt", kFileWrite);
+      if (f)
+      {
+        int n = snprintf(msg, sizeof(msg),
+                         "entry(0x08000000)@+0x%x cur(pc=0x%x thumb=%d)@+0x%x len=0x%x\n",
+                         (unsigned)(entry - rom_translation_cache),
+                         (unsigned)reg[REG_PC],
+                         (int)((reg[REG_CPSR] >> 5) & 1),
+                         (unsigned)(cur - rom_translation_cache),
+                         (unsigned)(rom_translation_ptr - rom_translation_cache));
+        pd->file->write(f, msg, n);
+        pd->file->close(f);
+      }
+      pd->system->logToConsole("gpsp: jit dump written");
+      jit_dumped = 1;
+    }
+  }
+#endif
+
 #ifdef TARGET_SIMULATOR
   /* Headless-verification hook: dump the raw RGB565 frame a few times so
    * the boot can be checked offline (see NOTES.md Phase 1). */
@@ -515,7 +566,9 @@ int eventHandler(PlaydateAPI *playdate, PDSystemEvent event, uint32_t arg)
       libretro_supports_bitmasks = true;
       retro_set_input_state(pd_input_state);
 
-#ifdef HAVE_DYNAREC
+#if defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
+      /* Device only: the simulator build may host the TRANSLATOR (for
+       * PD_TRANSLATE_DUMP) but must never execute emitted Thumb-2. */
       thumb2_cache_sync_cb = pd->system->clearICache;
       dynarec_enable = 1;
 #endif

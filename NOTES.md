@@ -88,6 +88,16 @@ Static-audit findings (fixed before first execution):
   `bios_swi_entrypoint` only flows through the branch patcher, which masks
   bit0.
 
+Host translation-dump harness (pd_dynarec_hoststub.c + PD_TRANSLATE_DUMP
+in the shell, simulator+DYNAREC build): the translator is pure C, so the
+host build translates real guest blocks and dumps the emitted Thumb-2 to
+Data/jitdump.bin for offline disassembly - emitted code is NEVER executed
+off-device (dynarec_enable stays 0; this is a translator check, not
+emulator testing). Verified against real Tetris-homebrew blocks: register
+allocation, condition inversion, cycle accounting, handler-table offsets,
+CBNZ skip distances and block-link patching all correct, instruction by
+instruction.
+
 Progress: encoders DONE (GAS-roundtrip tested, tests/thumb2gen.c),
 stub DONE (assembles, disasm-verified, includes SDIV-based SWI 6/7 HLE),
 emitter DONE (compiles+links under DYNAREC=1: 478KB text / 4.08MB bss with

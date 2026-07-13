@@ -37,7 +37,8 @@ SRC = playdate_main.c \
       rfu.c \
       serial_proto.c \
       pd_playbench_unit.c \
-      pd_jit_smoke.c
+      pd_jit_smoke.c \
+      pd_dynarec_hoststub.c
 
 # Non-.c translation units (common.mk's object list only handles .c).
 SRC_XX = cpu.cc video.cc bios_data.S
