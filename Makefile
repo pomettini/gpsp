@@ -23,6 +23,7 @@ VPATH += .
 # rom_picker_unit.c #includes the pd-rom-picker submodule source via UINCDIR.
 SRC = playdate_main.c \
       render.c \
+      pd_audio.c \
       pd_filestream.c \
       pd_syscalls.c \
       rom_picker_unit.c \
@@ -67,10 +68,12 @@ ifeq ($(JITSMOKE),1)
 UDEFS += -DPD_JIT_SMOKE
 endif
 
-# make DYNAREC=1: Thumb-2 dynarec (Phase 4, arm/thumb2_emit.h). DEVICE
-# ONLY (the simulator host can't run Thumb-2). Fails to build until the
-# backend port is complete - see NOTES.md workplan.
+# Thumb-2 dynarec (arm/thumb2_emit.h), ON by default since bring-up passed
+# (FireRed 2.5x, stable in gameplay). DYNAREC=0 builds the interpreter for
+# A/B comparisons. The dynarec executes on DEVICE only; the simulator build
+# hosts just the translator (PD_TRANSLATE_DUMP).
 # SMALL_TRANSLATION_CACHE: 2MB ROM + 384KB RAM caches (16MB budget).
+DYNAREC ?= 1
 ifeq ($(DYNAREC),1)
 UDEFS += -DHAVE_DYNAREC -DTHUMB2_ARCH -DSMALL_TRANSLATION_CACHE
 # The stub reserves the translation caches in .bss: the assembler must see

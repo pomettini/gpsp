@@ -23,7 +23,19 @@ upstream kept minimal, libretro build must keep working.
   skipped frames bypass `update_scanline` and the blit entirely. Audio still
   drained/discarded. The "Press Select" menu slot was dropped for Frameskip —
   Select is crank-backward only now.
-- Phase 4 (Thumb-2 dynarec): **GO — smoke test passed on device 2026-07-12**
+- **Phase 4 (Thumb-2 dynarec): WORKING ON DEVICE 2026-07-13** — FireRed
+  2.48x over the interpreter (27.71ms vs 68.68ms, est 36 fps emulated),
+  stable through scripted intro + manual play incl. a rival battle.
+  DYNAREC=1 is now the default build; DYNAREC=0 keeps the interpreter
+  for A/B. Remaining perf levers: -O3 on cpu_threaded, ITCM placement,
+  translation-spike smoothing (worst=112ms).
+- **Audio: wired (Phase 3 completion)** — pd_audio.c: main thread mixes
+  (render_gbc_sound, the call the shell owns via PD_SHELL_AUDIO) and
+  linear-resamples 65536->44100 Hz into a lock-free ring; the Playdate
+  audio-thread callback only drains (vecx finding: never generate on the
+  audio thread). Underruns emit silence: under-speed play gets gaps, not
+  pitch shift. Cost shows as "aud" in perf.log. NOT yet heard on device.
+- Phase 4 original gate notes (2026-07-12 smoke test):
   (build ad5b936). Facts established on the Rev B:
   - Main RAM (.bss, PSRAM 0x90xxxxxx) is executable from user code.
   - `pd->system->clearICache()` alone keeps emitted code coherent (test B:

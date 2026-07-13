@@ -48,10 +48,10 @@ static PlaydateAPI *pd;
  * heap so the ROM cache gets an honest malloc budget. */
 static u16 screen_pixels[GBA_SCREEN_BUFFER_SIZE / sizeof(u16)];
 
-/* Audio: drained every frame so the core's ring indices stay in a sane
- * range. Phase 1 discards the samples; Playdate output is Phase 3. */
-#define AUDIO_DRAIN_FRAMES 2048
-static s16 audio_drain[AUDIO_DRAIN_FRAMES * 2];
+/* Audio output lives in pd_audio.c: main thread mixes+resamples into a
+ * ring, the Playdate audio thread drains it. */
+void pd_audio_init(PlaydateAPI *pd);
+void pd_audio_frame(void);
 
 /* --- Input ----------------------------------------------------------------
  * input.c polls through a libretro-style callback; we provide one that maps
@@ -134,7 +134,7 @@ static void poll_crank_and_injections(void)
  * totals are what matters). */
 #define PERF_WINDOW 600
 static u32 perf_updates, perf_rendered, perf_skipped;
-static u32 perf_emu_ms, perf_blit_ms, perf_window_start_ms;
+static u32 perf_emu_ms, perf_blit_ms, perf_aud_ms, perf_window_start_ms;
 static u32 perf_emu_max_ms;
 
 /* --- Save RAM -------------------------------------------------------------
@@ -344,20 +344,22 @@ static void perf_flush(u32 now)
     u32 wall = now - perf_window_start_ms;
     int len = snprintf(line, sizeof(line),
         "build %s %s | fs=%s | upd=%u rend=%u skip=%u | wall=%ums "
-        "| emu avg=%u.%02ums max=%ums | blit avg=%u.%02ums\n",
+        "| emu avg=%u.%02ums max=%ums | aud avg=%u.%02ums | blit avg=%u.%02ums\n",
         __DATE__, __TIME__, fs_options[frameskip_mode],
         (unsigned)perf_updates, (unsigned)perf_rendered,
         (unsigned)perf_skipped, (unsigned)wall,
         (unsigned)(perf_emu_ms / perf_updates),
         (unsigned)((perf_emu_ms * 100 / perf_updates) % 100),
         (unsigned)perf_emu_max_ms,
+        (unsigned)(perf_aud_ms / perf_updates),
+        (unsigned)((perf_aud_ms * 100 / perf_updates) % 100),
         (unsigned)(perf_rendered ? perf_blit_ms / perf_rendered : 0),
         (unsigned)(perf_rendered ? (perf_blit_ms * 100 / perf_rendered) % 100 : 0));
     pd->file->write(f, line, len);
     pd->file->close(f);
   }
   perf_updates = perf_rendered = perf_skipped = 0;
-  perf_emu_ms = perf_blit_ms = perf_emu_max_ms = 0;
+  perf_emu_ms = perf_blit_ms = perf_aud_ms = perf_emu_max_ms = 0;
   perf_window_start_ms = now;
 }
 
@@ -398,7 +400,7 @@ static int decide_skip(u32 last_update_ms)
 static int update(void *userdata)
 {
   static u32 last_update_ms;
-  u32 t0, t1, t2;
+  u32 t0, t1, t_aud, t2;
   int skip;
 
   (void)userdata;
@@ -440,8 +442,8 @@ static int update(void *userdata)
   }
   t1 = pd->system->getCurrentTimeMilliseconds();
 
-  /* Keep the audio ring drained (samples discarded until Phase 3). */
-  sound_read_samples(audio_drain, AUDIO_DRAIN_FRAMES);
+  pd_audio_frame();
+  t_aud = pd->system->getCurrentTimeMilliseconds();
 
   if (!skip)
     pd_render_frame(screen_pixels);
@@ -455,6 +457,7 @@ static int update(void *userdata)
 
   perf_updates++;
   perf_emu_ms += t1 - t0;
+  perf_aud_ms += t_aud - t1;
   if (t1 - t0 > perf_emu_max_ms)
     perf_emu_max_ms = t1 - t0;
   if (skip)
@@ -462,7 +465,7 @@ static int update(void *userdata)
   else
   {
     perf_rendered++;
-    perf_blit_ms += t2 - t1;
+    perf_blit_ms += t2 - t_aud;
   }
   if (perf_updates >= PERF_WINDOW)
     perf_flush(t2);
@@ -560,6 +563,7 @@ int eventHandler(PlaydateAPI *playdate, PDSystemEvent event, uint32_t arg)
 #endif
       pd_filestream_init(pd);
       pd_render_init(pd);
+      pd_audio_init(pd);
       pd->system->setAutoLockDisabled(1);
 
       gba_screen_pixels = screen_pixels;
