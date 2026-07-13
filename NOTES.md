@@ -76,6 +76,18 @@ M-profile deltas found reading arm_stub.S (they change the emitted ABI):
 
 Porting checklist (order of work):
 
+Static-audit findings (fixed before first execution):
+
+- **Interworking**: `block_lookup_address_*` returns raw even cache
+  addresses; every stub `bx r0` block entry now ORRs the Thumb bit first
+  (even `bx` target on M7 = HardFault). 17 sites.
+- Condition 0x0F (opposite-of-AL) can never reach the branch filler: the
+  frontend skips the conditional header for AL and Thumb has no AL cond
+  branch — no "never" branch encoding needed.
+- The frontend has zero direct references to backend encodings (verified);
+  `bios_swi_entrypoint` only flows through the branch patcher, which masks
+  bit0.
+
 Progress: encoders DONE (GAS-roundtrip tested, tests/thumb2gen.c),
 stub DONE (assembles, disasm-verified, includes SDIV-based SWI 6/7 HLE),
 emitter DONE (compiles+links under DYNAREC=1: 478KB text / 4.08MB bss with
