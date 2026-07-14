@@ -384,6 +384,13 @@ Game            | emu ms | ppu ms | 1bit+blit ms | audio ms | total ms | skips
 Wario Land 4    |        |        |              |          |          |
 ```
 
+## Bench 2026-07-13 1de1190 RevB (DYNAREC + AUDIO, FireRed, bundled script)
+avg_frame_ms=29.90 best=15 worst=108 | est fps=33.45 | skipped 1642/2300
+
+- Audio costs ~2.2ms/frame (29.90 vs 27.71 without). Confirmed audible on
+  device: music plays, stutters/gaps while under speed (by design - pitch
+  stays correct), some distortion to investigate later.
+
 ## Bench 2026-07-13 7bff380 RevB (DYNAREC, FireRed, bundled script)
 avg_frame_ms=27.71 best=12 worst=112 | est fps=36.09 | skipped 1465/2300
 
