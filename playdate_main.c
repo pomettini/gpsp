@@ -425,20 +425,53 @@ static int update(void *userdata)
 
   skip = decide_skip(last_update_ms);
 
-  /* One emulated frame; interpreter path needs the sticky bits cleared
-   * (page-eviction protection) exactly like the libretro loop. */
+  /* Time-based catch-up: the GBA runs at 59.73 fps but updates arrive at
+   * <=50Hz, so one guest frame per update caps the game at 84% speed. Track
+   * frames owed by wall time (16.16-ish fixed point: 597 owed-units per ms,
+   * 10000 per frame) and run a second guest frame when a full one is owed
+   * and the first was cheap. The extra frame is never rendered. */
   t0 = pd->system->getCurrentTimeMilliseconds();
-  skip_next_frame = skip;
+  {
+    static u32 pace_last_ms;
+    static u32 pace_owed;
+    u32 pace_dt = t0 - pace_last_ms;
+    int extra;
+    pace_last_ms = t0;
+    if (pace_dt > 100)
+      pace_dt = 100;                /* menu pauses etc: don't accrue debt */
+    pace_owed += pace_dt * 597;
+    if (pace_owed > 25000)
+      pace_owed = 25000;            /* cap the debt at 2.5 frames */
+
+    /* Decide up front (from the previous update's cost) whether two guest
+     * frames fit this window; the first of a pair is never rendered. Heavy
+     * scenes always run and render exactly one frame. */
+    {
+      int run_two = (pace_owed >= 20000 && last_update_ms < 14);
+      int nframes = run_two ? 2 : 1;
+
+      for (extra = 0; extra < nframes; extra++)
+      {
+        /* Interpreter path needs the sticky bits cleared (page-eviction
+         * protection) exactly like the libretro loop. */
+        skip_next_frame = (run_two && extra == 0) ? 1 : skip;
 #ifdef HAVE_DYNAREC
-  if (dynarec_enable)
-  {
-    execute_arm_translate(execute_cycles);
-  }
-  else
+        if (dynarec_enable)
+        {
+          execute_arm_translate(execute_cycles);
+        }
+        else
 #endif
-  {
-    clear_gamepak_stickybits();
-    execute_arm(execute_cycles);
+        {
+          clear_gamepak_stickybits();
+          execute_arm(execute_cycles);
+        }
+        if (pace_owed >= 10000)
+          pace_owed -= 10000;
+        else
+          pace_owed = 0;
+      }
+    }
   }
   t1 = pd->system->getCurrentTimeMilliseconds();
 
