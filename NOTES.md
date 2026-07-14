@@ -384,6 +384,21 @@ Game            | emu ms | ppu ms | 1bit+blit ms | audio ms | total ms | skips
 Wario Land 4    |        |        |              |          |          |
 ```
 
+## Bench 2026-07-14 104b2df RevB (perf pass: ADDW cycles, O3 translator)
+avg_frame_ms=29.42 (was 29.86) | est fps=33.99 | worst 117 -> steady-state 40
+
+- perf.log diagnostics: **ramflush=0** (no SMC flush storms - that theory is
+  closed); spikes are cold translation and plateau once romtx stops growing
+  (709KB of the 2MB ROM cache after the intro; max drops 111 -> 40ms).
+- Budget now: emu 25-28ms, aud 1.9ms, blit 3ms. All remaining headroom is
+  in the emulation core itself. Next levers, in order of expected value:
+  1. TCM relocation of the hot stub memory handlers (every guest load/store;
+     emitted code thrashes the 16KB I-cache - vecx-class +10-15% expected).
+  2. Inline EWRAM/IWRAM fastpaths in emitted code (bigger win, bigger
+     surgery on the emitter).
+  3. Frame-pacing catch-up only helps where headroom exists (verified:
+     intro shows no change; menus/dialogue reach true 59.73).
+
 ## Bench 2026-07-13 1de1190 RevB (DYNAREC + AUDIO, FireRed, bundled script)
 avg_frame_ms=29.90 best=15 worst=108 | est fps=33.45 | skipped 1642/2300
 
