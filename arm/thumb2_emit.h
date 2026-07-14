@@ -272,13 +272,17 @@ u32 thumb_register_allocation[] =
 #define generate_cycle_update()                                               \
   if(cycle_count)                                                             \
   {                                                                           \
-    if(cycle_count >> 8)                                                      \
+    if(cycle_count < 4096)                                                    \
+    {                                                                         \
+      t2_addw(reg_cycles, reg_cycles, cycle_count);  /* one ADDW covers it */ \
+    }                                                                         \
+    else                                                                      \
     {                                                                         \
       t2_dp_imm_auto(T2OP_ADD, 0, reg_cycles, reg_cycles,                     \
-                     cycle_count & 0xFF00);                                   \
+                     cycle_count & ~0xFFU);                                   \
+      t2_dp_imm_auto(T2OP_ADD, 0, reg_cycles, reg_cycles,                     \
+                     cycle_count & 0xFF);                                     \
     }                                                                         \
-    t2_dp_imm_auto(T2OP_ADD, 0, reg_cycles, reg_cycles,                       \
-                   cycle_count & 0xFF);                                       \
     cycle_count = 0;                                                          \
   }                                                                           \
 

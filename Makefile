@@ -121,6 +121,10 @@ CXXFLAGS = $(MCFLAGS) $(OPT) -gdwarf-2 -Wall -Wno-unused -Wno-unknown-pragmas \
 $(OBJDIR)/cpu.o: cpu.cc | MKOBJDIR MKDEPDIR
 	$(CXX) -c $(filter-out -O2,$(CXXFLAGS)) -O3 -MD -MP -MF $(DEPDIR)/$(@F).d -I . $(INCDIR) $< -o $@
 
+# -O3 on the translator: shrinks cold-cache translation bursts.
+$(OBJDIR)/cpu_threaded.o: cpu_threaded.c | MKOBJDIR MKDEPDIR
+	$(CC) -c $(filter-out -O2,$(CPFLAGS)) -O3 -I . $(INCDIR) $< -o $@
+
 $(OBJDIR)/video.o: video.cc | MKOBJDIR MKDEPDIR
 	$(CXX) -c $(CXXFLAGS) -MD -MP -MF $(DEPDIR)/$(@F).d -I . $(INCDIR) $< -o $@
 

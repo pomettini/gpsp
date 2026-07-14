@@ -340,7 +340,7 @@ static void perf_flush(u32 now)
   SDFile *f = pd->file->open("perf.log", kFileAppend);
   if (f)
   {
-    char line[200];
+    char line[260];
     u32 wall = now - perf_window_start_ms;
     int len = snprintf(line, sizeof(line),
         "build %s %s | fs=%s | upd=%u rend=%u skip=%u | wall=%ums "
@@ -355,6 +355,24 @@ static void perf_flush(u32 now)
         (unsigned)((perf_aud_ms * 100 / perf_updates) % 100),
         (unsigned)(perf_rendered ? perf_blit_ms / perf_rendered : 0),
         (unsigned)(perf_rendered ? (perf_blit_ms * 100 / perf_rendered) % 100 : 0));
+#ifdef HAVE_DYNAREC
+    /* Spike diagnostics: SMC-triggered RAM-cache flushes this window and
+     * ROM translation-cache fill level. */
+    {
+      extern u32 flush_ram_count;
+      extern u8 *rom_translation_ptr;
+      extern u8 rom_translation_cache[];
+      static u32 last_flush_count;
+      if (len > 0 && line[len - 1] == '\n')
+        len--;                       /* keep everything on one line */
+      len += snprintf(line + len, sizeof(line) - len,
+                      " | ramflush=%u romtx=%uKB\n",
+                      (unsigned)(flush_ram_count - last_flush_count),
+                      (unsigned)((rom_translation_ptr -
+                                  rom_translation_cache) >> 10));
+      last_flush_count = flush_ram_count;
+    }
+#endif
     pd->file->write(f, line, len);
     pd->file->close(f);
   }
