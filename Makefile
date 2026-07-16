@@ -39,6 +39,7 @@ SRC = playdate_main.c \
       serial_proto.c \
       pd_playbench_unit.c \
       pd_jit_smoke.c \
+      pd_tcm_probe.c \
       pd_dynarec_hoststub.c
 
 # Non-.c translation units (common.mk's object list only handles .c).
@@ -66,6 +67,13 @@ endif
 # (Phase 4 step 0, see pd_jit_smoke.c). Run `make clean` when toggling.
 ifeq ($(JITSMOKE),1)
 UDEFS += -DPD_JIT_SMOKE
+endif
+
+# make TCMPROBE=1: progressive fast-memory probe at boot (pd_tcm_probe.c).
+# Crashes are expected while probing; relaunch until "probe done". Delete
+# Data/tcm_stage.txt to re-run from stage 0. Run `make clean` when toggling.
+ifeq ($(TCMPROBE),1)
+UDEFS += -DPD_TCM_PROBE
 endif
 
 # Thumb-2 dynarec (arm/thumb2_emit.h), ON by default since bring-up passed

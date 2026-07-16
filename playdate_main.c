@@ -647,6 +647,12 @@ int eventHandler(PlaydateAPI *playdate, PDSystemEvent event, uint32_t arg)
       rebuild_menu(1);
 
       pd->system->logToConsole("gpsp: Playdate build " __DATE__ " " __TIME__);
+#ifdef PD_TCM_PROBE
+      {
+        extern void pd_tcm_probe_run(PlaydateAPI *pd);
+        pd_tcm_probe_run(pd);
+      }
+#endif
 #ifdef PD_JIT_SMOKE
       {
         extern void pd_jit_smoke_run(PlaydateAPI *pd);
