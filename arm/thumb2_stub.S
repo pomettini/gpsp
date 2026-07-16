@@ -477,6 +477,26 @@ return_to_main:
   pop { r4, r5, r6, r7, r8, r9, r10, r11, r12, lr }
   bx lr
 
+@ Position-independent C call for the relocatable handler region below:
+@ the BL in call_c_function() is PC-relative and breaks when the region is
+@ copied to the DTCM pool; this loads the absolute address from a literal
+@ (relocated by the loader, copied along with the code). r12 is dead inside
+@ the push/pop window.
+#define call_c_function_abs(function)                                        ;\
+  push { call_c_saved_regs }                                                 ;\
+  ldr r12, =function                                                         ;\
+  blx r12                                                                    ;\
+  pop { call_c_saved_regs }                                                  ;\
+
+@ ---- Relocatable memory-handler pool [__t2pool_start, __t2pool_end) ------
+@ Everything in this range uses only reg_base-relative data accesses,
+@ region-internal branches, and literal-based outbound jumps/calls, so a
+@ byte copy into DTCM executes correctly (pd_tcm_pool.c patches the
+@ dispatch tables to point at the copy).
+.align 4
+.global __t2pool_start
+__t2pool_start:
+
 @ Prepares stores for external write function (align + zero extend value)
 #define store_align_8()   and r1, r1, #0xff
 #define store_align_16()  bic r0, r0, #0x01; extract_u16(r1, r1)
@@ -516,7 +536,7 @@ thumb_label(ext_store_u##store_type)                                         ;\
   save_flags()                                                               ;\
   str reg_gpc, [reg_base, #REG_PC]        /* write out PC                  */;\
   store_align_##store_type()                                                 ;\
-  call_c_function(write_memory##store_type)                                  ;\
+  call_c_function_abs(write_memory##store_type)                              ;\
   restore_flags()                                                            ;\
   bx lr                                   /* return                        */;\
                                                                              ;\
@@ -524,10 +544,14 @@ thumb_label(ext_io_store_u##store_type)                                      ;\
   save_flags()                                                               ;\
   str reg_gpc, [reg_base, #REG_PC]        /* write out PC                  */;\
                                                                              ;\
-  call_c_function(write_io_register##store_type)                             ;\
+  call_c_function_abs(write_io_register##store_type)                        ;\
                                                                              ;\
   cmp r0, #0                                                                 ;\
-  bne write_epilogue                      /* handle additional write stuff */;\
+  beq 7f                                  /* no side effects: plain return */;\
+  ldr r2, =write_epilogue                 /* PIC escape from the pool      */;\
+  orr r2, r2, #1                                                             ;\
+  bx r2                                   /* handle additional write stuff */;\
+7:                                                                           ;\
   restore_flags()                                                            ;\
   bx lr                                   /* return                        */;\
                                                                              ;\
@@ -577,8 +601,10 @@ thumb_label(ext_store_oam_ram_u##store_type)                                 ;\
                                                                              ;\
 3: /* Flush RAM cache and "resume" execution via re-compile */               ;\
   str reg_gpc, [reg_base, #REG_PC]        /* write out PC                  */;\
-  call_c_function(flush_translation_cache_ram)                               ;\
-  b resume_pc                             /* continue execution            */;\
+  call_c_function_abs(flush_translation_cache_ram)                           ;\
+  ldr r2, =resume_pc                      /* PIC escape from the pool      */;\
+  orr r2, r2, #1                                                             ;\
+  bx r2                                   /* continue execution            */;\
 
 @ for ignored areas, just return
 thumb_label(ext_store_ignore)
@@ -684,7 +710,7 @@ thumb_label(ext_store_palette_u32)
 thumb_label(ext_store_u32_safe)
 thumb_label(ext_io_store_u32_safe)
   save_flags()
-  call_c_function(write_memory32)         @ Perform 32bit store
+  call_c_function_abs(write_memory32)     @ Perform 32bit store
   restore_flags()
   bx lr                                   @ Return
 
@@ -901,7 +927,7 @@ thumb_label(ld_slow_##load_type)                                             ;\
 9:                                                                           ;\
 10:                                                                          ;\
   str reg_gpc, [reg_base, #REG_PC]        /* update PC                     */;\
-  call_c_function(load_function)                                             ;\
+  call_c_function_abs(load_function)                                         ;\
   restore_flags()                                                            ;\
   bx lr                                   /* return                        */;\
 
@@ -929,6 +955,22 @@ execute_load_builder(s8,  0, read_memory8s )
 execute_load_builder(u16, 1, read_memory16 )
 execute_load_builder(s16, 1, read_memory16s)
 execute_load_builder(u32, 2, read_memory32 )
+
+@ Pool self-test: lives INSIDE the pool; called through the relocated copy
+@ (pool_base + offset) before the dispatch tables are patched.
+.align 2
+.thumb_func
+.type t2pool_selftest, %function
+.global t2pool_selftest
+t2pool_selftest:
+  movw r0, #0x7357
+  bx lr
+
+@ Literals for the pool's PIC calls/escapes live inside the copied range.
+.ltorg
+.align 4
+.global __t2pool_end
+__t2pool_end:
 
 .data
 .align 4

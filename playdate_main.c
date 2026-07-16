@@ -284,6 +284,15 @@ static void start_emulation(void)
   reset_gba();
   rom_loaded = 1;
 
+#if defined(PD_TCM_POOL) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
+  /* After init_emitter refilled the dispatch tables: relocate the handler
+   * pool to DTCM and repoint the tables (see pd_tcm_pool.c). */
+  {
+    extern void pd_tcm_pool_install(PlaydateAPI *pd);
+    pd_tcm_pool_install(pd);
+  }
+#endif
+
   rom_picker_free();
   pd->graphics->clear(kColorBlack);
   want_picker = 0;

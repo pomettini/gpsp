@@ -40,6 +40,7 @@ SRC = playdate_main.c \
       pd_playbench_unit.c \
       pd_jit_smoke.c \
       pd_tcm_probe.c \
+      pd_tcm_pool.c \
       pd_dynarec_hoststub.c
 
 # Non-.c translation units (common.mk's object list only handles .c).
@@ -74,6 +75,12 @@ endif
 # Data/tcm_stage.txt to re-run from stage 0. Run `make clean` when toggling.
 ifeq ($(TCMPROBE),1)
 UDEFS += -DPD_TCM_PROBE
+endif
+
+# make TCMPOOL=1: relocate the dynarec memory handlers into the probed DTCM
+# pool (pd_tcm_pool.c). A/B experiment; needs DYNAREC. `make clean` to toggle.
+ifeq ($(TCMPOOL),1)
+UDEFS += -DPD_TCM_POOL
 endif
 
 # Thumb-2 dynarec (arm/thumb2_emit.h), ON by default since bring-up passed
