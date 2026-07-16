@@ -52,6 +52,31 @@ upstream kept minimal, libretro build must keep working.
   IT blocks or short branches replace conditional execution), function
   pointers carry the Thumb bit.
 
+## H7 fast-memory map (TCM probe, 2026-07-16, OS 3.1.0, PDU4-Y017929)
+
+- **ITCM 0x00000000: NO user access** - write, execute and high-offset write
+  all fault. Closed.
+- **DTCM: ~30KB clean pool** - writable from frame-0x2180 (~0x200079c0) down
+  to 0x20000000 with NO firmware holes (F746 had holes; H7 has none). The
+  stage-4 "crash at the end" was the probe descending below 0x20000000.
+- **Execution from the pool: PROVEN** (exec@0x20007980 returned OK).
+- init frame = 0x20009b50 (vs vecx F746 0x20009b88 - same neighborhood).
+- Caveat: "writable" does not prove "unowned" - deep-bottom DTCM may hold OS
+  data. Plan: place the pool in the stack shadow just below frame-0x2180
+  (same placement class vecx proved), NOT at the DTCM bottom.
+- Device firmware updated to 3.1.0 between sessions; probing was against
+  3.1.0. Re-probe on OS updates (delete Data/tcm_stage.txt, TCMPROBE=1).
+
+Relocation design (from these results): the stub's fast-path memory
+handlers become position-independent (only reg_base-relative accesses;
+slow-path exits via `ldr pc, =slow_label` literals, loader-relocated,
+position-free) between __t2pool_start/__t2pool_end markers inside .text.
+At init (DYNAREC device builds): manual word-copy into the DTCM pool,
+clearICache, self-test, then PATCH ld/st_lookup_tables entries to the pool
+copies (+Thumb bit). Emitted code reads handlers from the tables at runtime,
+so already-translated blocks pick up the fast copies instantly; self-test
+failure = leave tables untouched (correct, just slower). A/B via TCMPOOL=1.
+
 ## Phase 4 workplan (from the study pass of the ARM backend)
 
 Facts about the existing backend that shape the port:
