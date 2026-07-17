@@ -143,6 +143,21 @@ avg=25.61ms (was 26.12) | est fps=39.05 | emu 20.9-21.0 | romtx 873KB (was 896)
   BIOS CpuSet/LZ77 HLE. All flags still opt-in pending Wario/Kirby
   validation.
 
+## PPUHALF experiment: KILLED (2026-07-17, FireRed)
+
+avg=25.67 (flat vs 25.61) AND a real artifact: FireRed's intro portraits
+use the interlaced-object trick (large sprites drawn on alternating
+scanlines), which line-duplication visibly breaks (double-height Oak).
+Flat + ugly = dead. Important correction: the "12ms per rendered frame"
+PPU attribution from the PPUOFF run was evidently NOT pure scanline work
+(second-order effects); halving scanline rendering bought ~nothing.
+PPUHALF flag remains for reference but should not be shipped.
+
+Honest revised roadmap to native (~9ms gap): audio 32kHz (~1ms),
+PC-literal pools (emitted size), BIOS CpuSet/LZ77 HLE (Pokemon loads),
+then diminishing returns - full native on FireRed may not be reachable
+on this fetch fabric; lighter games remain the best candidates.
+
 ## Scheduler cost measurement (2026-07-17, SCHEDSTATS, FireRed)
 
 perf.log: **gba=666-669 calls per guest frame, 18-19us sampled per call,
