@@ -77,6 +77,25 @@ copies (+Thumb bit). Emitted code reads handlers from the tables at runtime,
 so already-translated blocks pick up the fast copies instantly; self-test
 failure = leave tables untouched (correct, just slower). A/B via TCMPOOL=1.
 
+## DTCM ownership postmortem (2026-07-17, three crash builds)
+
+**DTCM below the stack frame is firmware-OWNED on the H7 despite being
+writable and executable.** The probe (write+restore, traceless) and the
+exec test (also restoring) both "pass" there - but the pool install leaves
+code resident, corrupting live OS state; the OS then crashes LATER at a
+deterministic wild PC (0x24021036, AXI region), identically across pool
+layouts and margins (0x2180 and 0x4000) and even with dispatch tables
+unpatched (TCMPOOL=2 bisect). Ownership cannot be detected by traceless
+probing - only leave-corrupted-and-observe cycles would map the true gap,
+if one exists on this OS at all.
+
+Resolution: the handler pool now lives in the MALLOC HEAP, which the
+crash registers show is served from on-chip AXI SRAM (0x24xxxxxx) - legally
+owned, cached (not TCM), but far cheaper on I-cache miss than external
+PSRAM. The PIC handler region + table patching machinery is unchanged.
+Control build also confirmed: OS 3.1.0 runs the plain dynarec fine
+(30.09ms, caches in PSRAM as always).
+
 ## Phase 4 workplan (from the study pass of the ARM backend)
 
 Facts about the existing backend that shape the port:
