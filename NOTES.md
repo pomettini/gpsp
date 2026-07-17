@@ -99,6 +99,20 @@ avg_frame_ms=28.20 (pool-only: 28.27) | est fps=35.46 | stable
   code). Future perf would need fundamentally less/hotter code per guest op
   (e.g. block-level optimizations in the translator), not micro-dispatch.
 
+## Frame-time decomposition (2026-07-17, PPUOFF measurement, FireRed)
+
+PPUOFF=1 run (100% skip): emu avg=20.3ms. Against the inline build's
+steady state (emu 24.5ms at ~35% rendered):
+
+- pure CPU (emitted code + update_gba + handlers): 20.3ms (72%)
+- PPU: ~12ms PER RENDERED FRAME (4.2ms amortized at 35% rendered)
+- audio 1.9ms, blit ~1ms amortized
+
+Conclusions: CPU/fetch remains lever #1 (16-bit emission pass); the PPU is
+a fat #2 (12ms/rendered frame - a cheap-render mode would let MORE frames
+render, not just save time). Levers ranked in the "native performance"
+discussion of this date.
+
 ## DTCM ownership postmortem (2026-07-17, three crash builds)
 
 **DTCM below the stack frame is firmware-OWNED on the H7 despite being
