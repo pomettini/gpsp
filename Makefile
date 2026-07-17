@@ -82,6 +82,11 @@ endif
 ifeq ($(TCMPOOL),1)
 UDEFS += -DPD_TCM_POOL
 endif
+# TCMPOOL=2: bisect variant - copy+selftest the pool but do NOT patch the
+# dispatch tables (handlers keep running from PSRAM).
+ifeq ($(TCMPOOL),2)
+UDEFS += -DPD_TCM_POOL -DPD_TCM_POOL_NOPATCH
+endif
 
 # Thumb-2 dynarec (arm/thumb2_emit.h), ON by default since bring-up passed
 # (FireRed 2.5x, stable in gameplay). DYNAREC=0 builds the interpreter for

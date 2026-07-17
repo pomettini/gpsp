@@ -97,8 +97,14 @@ void pd_tcm_pool_install(PlaydateAPI *pd)
                              (unsigned)size, (void *)pool);
   }
 
+#ifdef PD_TCM_POOL_NOPATCH
+  /* Bisect build (TCMPOOL=2): install + selftest only, dispatch stays on
+   * the PSRAM originals. */
+  pd->system->logToConsole("tcm-pool: NOPATCH build, tables untouched");
+#else
   patch_table(&ld_lookup_tables[0][0], 5 * 17);
   patch_table(&st_lookup_tables[0][0], 4 * 17);
+#endif
 }
 
 #endif /* PD_TCM_POOL && HAVE_DYNAREC && TARGET_PLAYDATE */
