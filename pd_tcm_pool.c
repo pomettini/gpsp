@@ -28,9 +28,22 @@ extern void t2pool_selftest(void);
 extern u32 ld_lookup_tables[5][17];
 extern u32 st_lookup_tables[4][17];
 
-#define POOL_MARGIN 0x2180u  /* clearance below the init frame (probed) */
+/* Clearance below the init frame. vecx used 0x2180, but gpSP's stack dives
+ * far deeper (templated PPU under execute_arm_translate): the first pool
+ * build at 0x2180 was overwritten by the live stack -> wild-PC crash.
+ * 16KB margin; the canary below detects any future dive. */
+#define POOL_MARGIN 0x4000u
 
 static uintptr_t pool_base;  /* 0 until the copy+selftest passed */
+static volatile u32 *pool_canary; /* word just above the pool code */
+
+/* 1 = intact. Checked from the perf window so corruption is logged. */
+int pd_tcm_pool_ok(void)
+{
+  if (!pool_base)
+    return 1;
+  return *pool_canary == 0xCA9A11E5;
+}
 
 static void patch_table(u32 *tbl, unsigned n)
 {
@@ -63,6 +76,10 @@ void pd_tcm_pool_install(PlaydateAPI *pd)
 
     for (i = 0; i < words; i++)
       dst[i] = src[i];
+    /* Canary sits between the pool top and the stack margin: the stack
+     * must kill it before it can reach the code. */
+    pool_canary = (volatile u32 *)(pool + size);
+    *pool_canary = 0xCA9A11E5;
     pd->system->clearICache();
 
     probe = (u32 (*)(void))((pool +

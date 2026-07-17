@@ -744,95 +744,6 @@ thumb_label(ext_store_oam_ram_u32_safe)
   str r2, [reg_base, #OAM_UPDATED]        @ store anything non zero here
   bx lr                                   @ Return
 
-write_epilogue:
-  ldr r2, [reg_base, #REG_CPSR]           @ Save all register and CPSR
-  tst r2, #0x20                           @ Check thumb bit
-  store_registers_cond()                  @ Store ARM/Thumb regs
-  collapse_flags(r1)                      @ interrupt needs current flags
-
-  mov r2, r0                              @ r2 is stored across C calls
-  tst r2, #CPU_ALERT_SMC                  @ check for SMC code
-  beq 1f
-  call_c_function(flush_translation_cache_ram)   @ Flush RAM if bit is set
-
-1:
-  tst r2, #CPU_ALERT_IRQ                  @ check for IRQs
-  beq 2f
-  call_c_function(check_and_raise_interrupts)    @ Update CPU state to raise IRQ
-
-2:
-  tst r2, #CPU_ALERT_HALT                 @ check for CPU halt bit
-  beq lookup_pc                           @ Resume execution if not halted
-
-  @ Fallthrough to cpu_sleep_loop on purpose (CPU is now halted)
-
-  mvn r0, reg_cycles                      @ setup for update_gba
-
-cpu_sleep_loop:
-  call_c_function(update_gba)             @ update GBA until CPU isn't halted
-
-  cmp r0, #0
-  blt return_to_main                      @ New frame if bit 31 is set. Exit
-
-  bic r0, r0, #0xF0000000                 @ clear MSB, not part of count
-
-  @ The cpu is active again, go ahead and resume execution at current PC
-  mvn reg_cycles, r0                      @ load new cycle count
-  ldr r0, [reg_base, #REG_PC]             @ load new PC
-  ldr r1, [reg_base, #REG_CPSR]           @ r1 = flags
-  tst r1, #0x20                           @ see if Thumb bit is set
-  bne 2f
-
-  call_c_function(block_lookup_address_arm)
-  load_registers_arm()
-  extract_flags()
-  orr r0, r0, #1                          @ Thumb bit for block entry
-  bx r0                                   @ jump to new ARM block
-
-2:
-  call_c_function(block_lookup_address_thumb)
-  load_registers_thumb()
-  extract_flags()
-  orr r0, r0, #1                          @ Thumb bit for block entry
-  bx r0                                   @ jump to new Thumb block
-
-resume_pc:
-  @ Resume regular execution (except we might need to recompile due to flush)
-  @ assume flags are spilled to reg_flags
-  ldr r0, [reg_base, #REG_PC]             @ r0 = new pc
-  ldr r1, [reg_base, #REG_CPSR]           @ r1 = partial flags valid
-  tst r1, #0x20                           @ see if Thumb bit is set
-  beq 1f                                  @ if not lookup ARM
-
-  call_c_function(block_lookup_address_thumb)
-  restore_flags()
-  orr r0, r0, #1                          @ Thumb bit for block entry
-  bx r0                                   @ jump to new Thumb block
-1:
-  call_c_function(block_lookup_address_arm)
-  restore_flags()
-  orr r0, r0, #1                          @ Thumb bit for block entry
-  bx r0                                   @ jump to new ARM block
-
-lookup_pc:
-  @ Restart CPU execution, assumes CPU mode might have changed
-  ldr r0, [reg_base, #REG_PC]             @ r0 = new pc
-  ldr r1, [reg_base, #REG_CPSR]           @ r1 = flags
-  tst r1, #0x20                           @ see if Thumb bit is set
-  beq 2f                                  @ if not lookup ARM
-
-  call_c_function(block_lookup_address_thumb)
-  load_registers_thumb()
-  extract_flags()
-  orr r0, r0, #1                          @ Thumb bit for block entry
-  bx r0                                   @ jump to new Thumb block
-2:
-  call_c_function(block_lookup_address_arm)
-  load_registers_arm()
-  extract_flags()
-  orr r0, r0, #1                          @ Thumb bit for block entry
-  bx r0                                   @ jump to new ARM block
-
 @ T32 register-offset loads only allow LSL; addresses are pre-masked with
 @ UBFX (no flags disturbed).
 
@@ -971,6 +882,99 @@ t2pool_selftest:
 .align 4
 .global __t2pool_end
 __t2pool_end:
+
+@ Dispatch-loop control flow (reached only via absolute literals from the
+@ pool or from stub code; kept OUTSIDE the relocatable range because its
+@ PC-relative C calls do not survive copying).
+write_epilogue:
+  ldr r2, [reg_base, #REG_CPSR]           @ Save all register and CPSR
+  tst r2, #0x20                           @ Check thumb bit
+  store_registers_cond()                  @ Store ARM/Thumb regs
+  collapse_flags(r1)                      @ interrupt needs current flags
+
+  mov r2, r0                              @ r2 is stored across C calls
+  tst r2, #CPU_ALERT_SMC                  @ check for SMC code
+  beq 1f
+  call_c_function(flush_translation_cache_ram)   @ Flush RAM if bit is set
+
+1:
+  tst r2, #CPU_ALERT_IRQ                  @ check for IRQs
+  beq 2f
+  call_c_function(check_and_raise_interrupts)    @ Update CPU state to raise IRQ
+
+2:
+  tst r2, #CPU_ALERT_HALT                 @ check for CPU halt bit
+  beq lookup_pc                           @ Resume execution if not halted
+
+  @ Fallthrough to cpu_sleep_loop on purpose (CPU is now halted)
+
+  mvn r0, reg_cycles                      @ setup for update_gba
+
+cpu_sleep_loop:
+  call_c_function(update_gba)             @ update GBA until CPU isn't halted
+
+  cmp r0, #0
+  blt return_to_main                      @ New frame if bit 31 is set. Exit
+
+  bic r0, r0, #0xF0000000                 @ clear MSB, not part of count
+
+  @ The cpu is active again, go ahead and resume execution at current PC
+  mvn reg_cycles, r0                      @ load new cycle count
+  ldr r0, [reg_base, #REG_PC]             @ load new PC
+  ldr r1, [reg_base, #REG_CPSR]           @ r1 = flags
+  tst r1, #0x20                           @ see if Thumb bit is set
+  bne 2f
+
+  call_c_function(block_lookup_address_arm)
+  load_registers_arm()
+  extract_flags()
+  orr r0, r0, #1                          @ Thumb bit for block entry
+  bx r0                                   @ jump to new ARM block
+
+2:
+  call_c_function(block_lookup_address_thumb)
+  load_registers_thumb()
+  extract_flags()
+  orr r0, r0, #1                          @ Thumb bit for block entry
+  bx r0                                   @ jump to new Thumb block
+
+resume_pc:
+  @ Resume regular execution (except we might need to recompile due to flush)
+  @ assume flags are spilled to reg_flags
+  ldr r0, [reg_base, #REG_PC]             @ r0 = new pc
+  ldr r1, [reg_base, #REG_CPSR]           @ r1 = partial flags valid
+  tst r1, #0x20                           @ see if Thumb bit is set
+  beq 1f                                  @ if not lookup ARM
+
+  call_c_function(block_lookup_address_thumb)
+  restore_flags()
+  orr r0, r0, #1                          @ Thumb bit for block entry
+  bx r0                                   @ jump to new Thumb block
+1:
+  call_c_function(block_lookup_address_arm)
+  restore_flags()
+  orr r0, r0, #1                          @ Thumb bit for block entry
+  bx r0                                   @ jump to new ARM block
+
+lookup_pc:
+  @ Restart CPU execution, assumes CPU mode might have changed
+  ldr r0, [reg_base, #REG_PC]             @ r0 = new pc
+  ldr r1, [reg_base, #REG_CPSR]           @ r1 = flags
+  tst r1, #0x20                           @ see if Thumb bit is set
+  beq 2f                                  @ if not lookup ARM
+
+  call_c_function(block_lookup_address_thumb)
+  load_registers_thumb()
+  extract_flags()
+  orr r0, r0, #1                          @ Thumb bit for block entry
+  bx r0                                   @ jump to new Thumb block
+2:
+  call_c_function(block_lookup_address_arm)
+  load_registers_arm()
+  extract_flags()
+  orr r0, r0, #1                          @ Thumb bit for block entry
+  bx r0                                   @ jump to new ARM block
+
 
 .data
 .align 4

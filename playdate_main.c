@@ -382,6 +382,17 @@ static void perf_flush(u32 now)
       last_flush_count = flush_ram_count;
     }
 #endif
+#if defined(PD_TCM_POOL) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
+    {
+      extern int pd_tcm_pool_ok(void);
+      if (!pd_tcm_pool_ok())
+      {
+        if (len > 0 && line[len - 1] == '\n')
+          len--;
+        len += snprintf(line + len, sizeof(line) - len, " | POOL CANARY DEAD\n");
+      }
+    }
+#endif
     pd->file->write(f, line, len);
     pd->file->close(f);
   }
