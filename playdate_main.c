@@ -667,6 +667,27 @@ int eventHandler(PlaydateAPI *playdate, PDSystemEvent event, uint32_t arg)
       rebuild_menu(1);
 
       pd->system->logToConsole("gpsp: Playdate build " __DATE__ " " __TIME__);
+#ifdef HAVE_DYNAREC
+      /* Written to a file so it survives crashes: where did the loader put
+       * the caches this boot? (OS 3.1.0 vs 3.0.6 placement question.) */
+      {
+        extern u8 rom_translation_cache[];
+        extern u8 ram_translation_cache[];
+        char amsg[120];
+        SDFile *af = pd->file->open("addr.txt", kFileWrite);
+        int alen = snprintf(amsg, sizeof(amsg),
+                            "romtx=%p ramtx=%p reg=%p frame=%p\n",
+                            (void *)rom_translation_cache,
+                            (void *)ram_translation_cache,
+                            (void *)reg, __builtin_frame_address(0));
+        pd->system->logToConsole("gpsp: %s", amsg);
+        if (af)
+        {
+          pd->file->write(af, amsg, alen);
+          pd->file->close(af);
+        }
+      }
+#endif
 #ifdef PD_TCM_PROBE
       {
         extern void pd_tcm_probe_run(PlaydateAPI *pd);
