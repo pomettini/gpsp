@@ -115,6 +115,20 @@ Kirby Nightmare in Dream Land | 34.98 | 28.6   | 27%      | 254
   frame time) + optionally a cheap-PPU mode (12ms/rendered frame; more
   rendered frames = visibly smoother, esp. Wario at 46%).
 
+## Scheduler cost measurement (2026-07-17, SCHEDSTATS, FireRed)
+
+perf.log: **gba=666-669 calls per guest frame, 18-19us sampled per call,
+est 12.0-12.6ms/frame** (sample includes some getElapsedTime overhead, so
+true total is 6-12ms - either way the dominant single cost in the 20.3ms
+CPU budget). Breakdown: 456 video events (2 per scanline: hblank + line
+advance) + ~212 sound-timer fires. THE BOTTLENECK IS SCHEDULER ROUND-TRIPS,
+not emitted-code fetch. Plan (PD_SCHED_BATCH):
+1. One event per scanline: set the hblank flag/IRQ/DMA at the line-advance
+   event (timing skew <=272 cycles; flag polling coarsens - acceptable).
+2. Batch sound-timer fires: loop the overflow logic (N periods per call)
+   and stop capping execute_cycles for non-IRQ timers.
+Expected: 668 -> ~260 calls/frame, saving 4-8ms.
+
 ## Frame-time decomposition (2026-07-17, PPUOFF measurement, FireRed)
 
 PPUOFF=1 run (100% skip): emu avg=20.3ms. Against the inline build's
