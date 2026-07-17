@@ -76,6 +76,23 @@ static unsigned update_timers(irq_type *irq_raised, unsigned completed_cycles)
          write_ioreg(REG_TMXD(i + 1), -timer[i+1].count);
       }
 
+#ifdef PD_SCHED_BATCH
+      /* Fire every elapsed period now (timers may be several periods
+       * late when slices are no longer capped by non-IRQ timers). */
+      do
+      {
+         if(i < 2)
+         {
+            if(timer[i].direct_sound_channels & 0x01)
+               ret += sound_timer(timer[i].frequency_step, 0);
+
+            if(timer[i].direct_sound_channels & 0x02)
+               ret += sound_timer(timer[i].frequency_step, 1);
+         }
+
+         timer[i].count += (timer[i].reload << timer[i].prescale);
+      } while(timer[i].count <= 0);
+#else
       if(i < 2)
       {
          if(timer[i].direct_sound_channels & 0x01)
@@ -86,6 +103,7 @@ static unsigned update_timers(irq_type *irq_raised, unsigned completed_cycles)
       }
 
       timer[i].count += (timer[i].reload << timer[i].prescale);
+#endif
    }
    return ret;
 }
@@ -176,7 +194,14 @@ u32 function_cc update_gba(int remaining_cycles)
       {
         // Transition from hrefresh to hblank
         dispstat |= 0x02;
+#ifdef PD_SCHED_BATCH
+        // Coalesced scanline: run the hblank work now and advance to the
+        // next line in the SAME event (one update_gba round-trip per line
+        // instead of two; hblank flag/IRQ timing skews by <=272 cycles).
+        video_count += (272 + 960);
+#else
         video_count += (272);    // hblank duration, 272 cycles
+#endif
 
         // Check if we are drawing (0) or we are in vblank (1)
         if ((dispstat & 0x01) == 0)
@@ -200,6 +225,16 @@ u32 function_cc update_gba(int remaining_cycles)
         // Trigger the hblank interrupt, if enabled in DISPSTAT
         if (dispstat & 0x10)
           irq_raised |= IRQ_HBLANK;
+#ifdef PD_SCHED_BATCH
+        goto pd_line_advance;
+      }
+      else
+      {
+        video_count += 960;      // only reached from halted-CPU loops
+pd_line_advance:
+        dispstat &= ~0x02;
+        vcount++;
+#else
       }
       else
       {
@@ -207,6 +242,7 @@ u32 function_cc update_gba(int remaining_cycles)
         video_count += 960;
         dispstat &= ~0x02;
         vcount++;
+#endif
 
         if(vcount == 160)
         {
@@ -309,6 +345,12 @@ u32 function_cc update_gba(int remaining_cycles)
 
     for (i = 0; i < 4; i++)
     {
+#ifdef PD_SCHED_BATCH
+       /* Non-IRQ timers (sound FIFO pacing) fire late in batches; only
+        * IRQ-bearing timers still bound the slice. */
+       if (!timer[i].irq)
+          continue;
+#endif
        if (timer[i].status == TIMER_PRESCALE &&
            timer[i].count < execute_cycles)
           execute_cycles = timer[i].count;

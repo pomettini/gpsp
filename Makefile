@@ -88,6 +88,12 @@ ifeq ($(TCMPOOL),2)
 UDEFS += -DPD_TCM_POOL -DPD_TCM_POOL_NOPATCH
 endif
 
+# make SCHEDBATCH=1: coalesce scheduler events (one per scanline, batched
+# sound-timer fires). Timing skew <=272 cycles; measured A/B experiment.
+ifeq ($(SCHEDBATCH),1)
+UDEFS += -DPD_SCHED_BATCH
+endif
+
 # make SCHEDSTATS=1: count+sample update_gba scheduler round-trips
 # (perf.log gains a "gba" field). Tiny per-call overhead; A/B only.
 ifeq ($(SCHEDSTATS),1)
