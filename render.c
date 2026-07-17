@@ -45,7 +45,16 @@ void pd_render_init(PlaydateAPI *playdate)
     unsigned b = c & 0x1F;
     /* lum = 0.30r + 0.59g + 0.11b on 5/6/5-bit channels, 0..255 out. */
     unsigned lum = (r * 79 + g * 77 + b * 29) >> 5;
-    lum_lut[c] = lum > 255 ? 255 : (uint8_t)lum;
+    if (lum > 255)
+      lum = 255;
+    /* Contrast S-curve: the linear LUT dithers text and mid-dark
+     * backgrounds into competing checkers (unreadable dialogue). Squaring
+     * toward the extremes separates them onto opposite dither halves. */
+    if (lum < 128)
+      lum = (lum * lum) >> 7;
+    else
+      lum = 255 - (((255 - lum) * (255 - lum)) >> 7);
+    lum_lut[c] = (uint8_t)lum;
   }
 
   memset(prev_rows, 0xAA, sizeof(prev_rows)); /* force first-frame push */
