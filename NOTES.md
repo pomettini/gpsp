@@ -129,6 +129,20 @@ avg=26.12ms (was 28.2) | est fps=38.28 | emu 21.7-23.2 | RENDERED 50% (was 30%)
   fetch), cheap-PPU mode (12ms/rendered frame), audio 32kHz, underclock
   knob, BIOS CpuSet/LZ77 HLE (Pokemon-heavy).
 
+## Bench 2026-07-17 19e8ea9 RevB (NARROW 16-bit emission, FireRed)
+avg=25.61ms (was 26.12) | est fps=39.05 | emu 20.9-21.0 | romtx 873KB (was 896)
+
+- Real but modest: -0.5-0.8ms. Code shrank only 2.6% because emitted BYTES
+  are dominated by memory-op sequences (MOVW/MOVT pc pairs, .W loads, USAT)
+  that cannot narrow - ALU was a small share. Correctness held (roundtrip
+  suite + gameplay).
+- Next size lever therefore: literal pools for guest-PC constants (8B
+  MOVW/MOVT -> 4B ldr + shared literal) rather than more ALU forms.
+- Cumulative march: 68.7 -> 28.2 -> 26.1 -> 25.61ms; gap to native ~9ms.
+  Remaining: cheap-PPU (biggest), pc-literal pools, audio 32kHz, underclock,
+  BIOS CpuSet/LZ77 HLE. All flags still opt-in pending Wario/Kirby
+  validation.
+
 ## Scheduler cost measurement (2026-07-17, SCHEDSTATS, FireRed)
 
 perf.log: **gba=666-669 calls per guest frame, 18-19us sampled per call,
