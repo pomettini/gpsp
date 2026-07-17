@@ -87,6 +87,18 @@ avg_frame_ms=28.27 (control same-day: 30.09) | est fps=35.37 | no crashes
   not user-reachable, heap pool = +6% and safe. Experiment closed; keep
   TCMPOOL=1. Next perf lever: inline EWRAM/IWRAM fastpaths in emitted code.
 
+## Bench 2026-07-17 0d90074 RevB (inline load fastpaths, FireRed, bundled script)
+avg_frame_ms=28.20 (pool-only: 28.27) | est fps=35.46 | stable
+
+- FLAT. Inline page-map loads (5-inst fastpath, handler fallback) verified
+  correct via host dump, but no measurable win over the heap pool: the
+  emitted code itself streams from slow PSRAM, so ~20 extra bytes per load
+  site cost about what the skipped handler round-trip saved.
+- Conclusion: the fetch fabric (PSRAM + 16KB I-cache) is the wall, not the
+  dispatch. INLINEMEM stays available but OFF by default (smaller emitted
+  code). Future perf would need fundamentally less/hotter code per guest op
+  (e.g. block-level optimizations in the translator), not micro-dispatch.
+
 ## DTCM ownership postmortem (2026-07-17, three crash builds)
 
 **DTCM below the stack frame is firmware-OWNED on the H7 despite being
