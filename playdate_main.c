@@ -462,6 +462,11 @@ static int update(void *userdata)
   update_input();
 
   skip = decide_skip(last_update_ms);
+#ifdef PD_PPU_OFF
+  /* PPU-share measurement build: never render, so perf.log's emu avg is
+   * pure CPU+scheduler cost. The screen stays frozen by design. */
+  skip = 1;
+#endif
 
   /* Time-based catch-up: the GBA runs at 59.73 fps but updates arrive at
    * <=50Hz, so one guest frame per update caps the game at 84% speed. Track

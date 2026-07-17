@@ -88,6 +88,12 @@ ifeq ($(TCMPOOL),2)
 UDEFS += -DPD_TCM_POOL -DPD_TCM_POOL_NOPATCH
 endif
 
+# make PPUOFF=1: skip ALL rendering to measure the PPU's share of frame
+# time (screen freezes by design; read perf.log's emu avg).
+ifeq ($(PPUOFF),1)
+UDEFS += -DPD_PPU_OFF
+endif
+
 # make INLINEMEM=1: inline load fastpaths in emitted code (A/B experiment).
 ifeq ($(INLINEMEM),1)
 UDEFS += -DPD_INLINE_MEM
