@@ -99,6 +99,22 @@ avg_frame_ms=28.20 (pool-only: 28.27) | est fps=35.46 | stable
   code). Future perf would need fundamentally less/hotter code per guest op
   (e.g. block-level optimizations in the translator), not micro-dispatch.
 
+## Bench 2026-07-17 34d0b57 RevB - target-game calibration (bundled script)
+
+Game                        | avg ms | est fps | rendered | worst
+----------------------------|--------|---------|----------|------
+Pokemon FireRed (intro)     | 28.20  | 35.5    | 30%      | 126
+Wario Land 4                | 28.01  | 35.7    | 46%      | 64
+Kirby Nightmare in Dream Land | 34.98 | 28.6   | 27%      | 254
+
+- FireRed's intro is NOT the worst case: Kirby NiDL is heavier (late-era
+  remake, blending effects, much more code - see worst=254 translation
+  bursts). Wario renders the most frames (lightest PPU balance).
+- All three sit at the plan's original success bar (~30fps emulated with
+  frameskip). Full speed needs the 16-bit emission pass (CPU/fetch, 72% of
+  frame time) + optionally a cheap-PPU mode (12ms/rendered frame; more
+  rendered frames = visibly smoother, esp. Wario at 46%).
+
 ## Frame-time decomposition (2026-07-17, PPUOFF measurement, FireRed)
 
 PPUOFF=1 run (100% skip): emu avg=20.3ms. Against the inline build's
