@@ -101,10 +101,36 @@ static inline u32 t2_imm12(u32 v)
 
 /* --- Data processing, modified immediate ----------------------------------
  * imm12 comes from t2_imm12 (must be valid). S in {0,1}. */
+static inline void t2_dp_imm_f(u8 **tp, u32 op, u32 s, u32 rd, u32 rn,
+                               u32 imm12)
+{
+  u8 *translation_ptr = *tp;
+#ifdef PD_NARROW
+  if (s && imm12 < 256)     /* plain imm8, no rotation */
+  {
+    u32 done = 1;
+    if (op == T2OP_SUB && rd == 15 && rn < 8)
+      t2_write16(0x2800 | (rn << 8) | imm12)         /* CMP  */
+    else if (op == T2OP_ORR && rn == 15 && rd < 8)
+      t2_write16(0x2000 | (rd << 8) | imm12)         /* MOVS */
+    else if (op == T2OP_ADD && rd < 8 && rd == rn)
+      t2_write16(0x3000 | (rd << 8) | imm12)         /* ADDS rdn, #imm8 */
+    else if (op == T2OP_SUB && rd < 8 && rd == rn)
+      t2_write16(0x3800 | (rd << 8) | imm12)         /* SUBS rdn, #imm8 */
+    else if (op == T2OP_RSB && imm12 == 0 && rd < 8 && rn < 8)
+      t2_write16(0x4240 | (rn << 3) | rd)            /* NEGS */
+    else
+      done = 0;
+    if (done) { *tp = translation_ptr; return; }
+  }
+#endif
+  t2_write32(0xF000 | (((imm12 >> 11) & 1) << 10) | (op << 5) |
+             (s << 4) | rn,
+             (((imm12 >> 8) & 7) << 12) | (rd << 8) | (imm12 & 0xFF));
+  *tp = translation_ptr;
+}
 #define t2_dp_imm(op, s, rd, rn, imm12)                                       \
-  t2_write32(0xF000 | ((((imm12) >> 11) & 1) << 10) | ((op) << 5) |           \
-             ((s) << 4) | (rn),                                               \
-             ((((imm12) >> 8) & 7) << 12) | ((rd) << 8) | ((imm12) & 0xFF))   \
+  t2_dp_imm_f(&translation_ptr, op, s, rd, rn, imm12)                         \
 
 /* ADDW/SUBW: plain 12-bit immediate (0..4095), no flags. For addresses. */
 #define t2_addw(rd, rn, imm)                                                  \
@@ -116,11 +142,66 @@ static inline u32 t2_imm12(u32 v)
              ((((imm) >> 8) & 7) << 12) | ((rd) << 8) | ((imm) & 0xFF))       \
 
 /* --- Data processing, shifted register ------------------------------------
- * shift = 0..31, type = T2SHIFT_*. */
+ * shift = 0..31, type = T2SHIFT_*. Narrow (16-bit T1) forms are selected
+ * when exactly equivalent: S set (T1 ALU always sets flags), low regs,
+ * encodable shape. GAS makes the same choices, so the roundtrip test
+ * remains the oracle. */
+static inline void t2_dp_reg_f(u8 **tp, u32 op, u32 s, u32 rd, u32 rn,
+                               u32 rm, u32 type, u32 shift)
+{
+  u8 *translation_ptr = *tp;
+#ifdef PD_NARROW
+  if (s && shift == 0 && type == T2SHIFT_LSL && rn < 8 && rm < 8)
+  {
+    u32 done = 1;
+    if (rd == 15)          /* TST/CMP/CMN (rd=PC S-forms) */
+    {
+      if (op == T2OP_AND)      t2_write16(0x4200 | (rm << 3) | rn)
+      else if (op == T2OP_SUB) t2_write16(0x4280 | (rm << 3) | rn)
+      else if (op == T2OP_ADD) t2_write16(0x42C0 | (rm << 3) | rn)
+      else done = 0;
+    }
+    else if (rd < 8)
+    {
+      if (op == T2OP_ADD)      t2_write16(0x1800 | (rm << 6) | (rn << 3) | rd)
+      else if (op == T2OP_SUB) t2_write16(0x1A00 | (rm << 6) | (rn << 3) | rd)
+      else if (rd == rn)
+      {
+        if (op == T2OP_AND)      t2_write16(0x4000 | (rm << 3) | rd)
+        else if (op == T2OP_EOR) t2_write16(0x4040 | (rm << 3) | rd)
+        else if (op == T2OP_ADC) t2_write16(0x4140 | (rm << 3) | rd)
+        else if (op == T2OP_SBC) t2_write16(0x4180 | (rm << 3) | rd)
+        else if (op == T2OP_ORR) t2_write16(0x4300 | (rm << 3) | rd)
+        else if (op == T2OP_BIC) t2_write16(0x4380 | (rm << 3) | rd)
+        else done = 0;
+      }
+      else done = 0;
+    }
+    else done = 0;
+    if (done) { *tp = translation_ptr; return; }
+  }
+  /* MOVS/MVNS with rn=15 */
+  if (s && rn == 15 && rd < 8 && rm < 8)
+  {
+    if (op == T2OP_ORR && type != T2SHIFT_ROR)
+    {                       /* MOVS = LSLS #0; LSLS/LSRS/ASRS #imm5 */
+      t2_write16((type << 11) | ((shift & 31) << 6) | (rm << 3) | rd);
+      *tp = translation_ptr; return;
+    }
+    if (op == T2OP_ORN && shift == 0 && type == T2SHIFT_LSL)
+    {
+      t2_write16(0x43C0 | (rm << 3) | rd);   /* MVNS rd, rm */
+      *tp = translation_ptr; return;
+    }
+  }
+#endif
+  t2_write32(0xEA00 | (op << 5) | (s << 4) | rn,
+             (((shift >> 2) & 7) << 12) | (rd << 8) |
+             ((shift & 3) << 6) | (type << 4) | rm);
+  *tp = translation_ptr;
+}
 #define t2_dp_reg(op, s, rd, rn, rm, type, shift)                             \
-  t2_write32(0xEA00 | ((op) << 5) | ((s) << 4) | (rn),                        \
-             ((((shift) >> 2) & 7) << 12) | ((rd) << 8) |                     \
-             (((shift) & 3) << 6) | ((type) << 4) | (rm))                     \
+  t2_dp_reg_f(&translation_ptr, op, s, rd, rn, rm, type, shift)               \
 
 /* MOV/MVN (shifted register): rn=15. */
 #define t2_mov_reg_shift(s, rd, rm, type, shift)                              \

@@ -9,7 +9,7 @@
   and.w r9, r9, #0xf0000000
   orr.w r4, r4, #0x00AB00AB
   bic.w r5, r5, #0xABABABAB
-  cmp.w r7, #0
+  cmp r7, #0
   tst.w r8, #0x20
   add.w r1, r2, r3, lsl #7
   subs.w r4, r5, r6, asr #31
@@ -17,7 +17,7 @@
   rsb.w r0, r1, r2
   cmn.w r3, r4, lsl #2
   lsr.w r2, r12, #31
-  lsls.w r3, r3, #1
+  lsls r3, r3, #1
   mvn.w r6, r7
   mov r10, r3
   mov r2, r11
@@ -82,4 +82,24 @@ b5:
   ldrsh.w r3, [r4, r5]
   addw r0, r1, #4095
   subw r2, r3, #0x8D0
+  adds r0, r1, r2
+  subs r3, r4, r5
+  ands r2, r3
+  orrs r4, r5
+  eors r6, r7
+  adcs r1, r0
+  cmp r6, r7
+  tst r1, r2
+  lsls r2, r3, #5
+  lsrs r4, r5, #12
+  asrs r6, r7, #1
+  movs r0, r1
+  mvns r2, r3
+  movs r5, #200
+  cmp r3, #77
+  adds r2, #255
+  subs r6, #1
+  negs r0, r1
+  add.w r0, r1, r2
+  adds.w r8, r8, r2
   nop

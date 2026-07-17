@@ -7,6 +7,7 @@ typedef unsigned short u16;
 typedef unsigned int u32;
 typedef int s32;
 
+#define PD_NARROW 1
 #include "thumb2_codegen.h"
 
 u8 buf[4096];
@@ -82,6 +83,28 @@ int main(void)
   t2_ldrsh_reg(3, 4, 5, 0);                            /* ldrsh.w r3, [r4, r5] */
   t2_addw(0, 1, 4095);                                 /* addw r0, r1, #4095 */
   t2_subw(2, 3, 0x8D0);                                /* subw r2, r3, #0x8D0 */
+  /* narrow (16-bit) selections - GAS picks the same forms */
+  t2_dp_reg(T2OP_ADD, 1, 0, 1, 2, T2SHIFT_LSL, 0);     /* adds r0, r1, r2 */
+  t2_dp_reg(T2OP_SUB, 1, 3, 4, 5, T2SHIFT_LSL, 0);     /* subs r3, r4, r5 */
+  t2_dp_reg(T2OP_AND, 1, 2, 2, 3, T2SHIFT_LSL, 0);     /* ands r2, r3 */
+  t2_dp_reg(T2OP_ORR, 1, 4, 4, 5, T2SHIFT_LSL, 0);     /* orrs r4, r5 */
+  t2_dp_reg(T2OP_EOR, 1, 6, 6, 7, T2SHIFT_LSL, 0);     /* eors r6, r7 */
+  t2_dp_reg(T2OP_ADC, 1, 1, 1, 0, T2SHIFT_LSL, 0);     /* adcs r1, r0 */
+  t2_dp_reg(T2OP_SUB, 1, 15, 6, 7, T2SHIFT_LSL, 0);    /* cmp r6, r7 */
+  t2_dp_reg(T2OP_AND, 1, 15, 1, 2, T2SHIFT_LSL, 0);    /* tst r1, r2 */
+  t2_mov_reg_shift(1, 2, 3, T2SHIFT_LSL, 5);           /* lsls r2, r3, #5 */
+  t2_mov_reg_shift(1, 4, 5, T2SHIFT_LSR, 12);          /* lsrs r4, r5, #12 */
+  t2_mov_reg_shift(1, 6, 7, T2SHIFT_ASR, 1);           /* asrs r6, r7, #1 */
+  t2_mov_reg_shift(1, 0, 1, T2SHIFT_LSL, 0);           /* movs r0, r1 */
+  t2_mvn_reg_shift(1, 2, 3, T2SHIFT_LSL, 0);           /* mvns r2, r3 */
+  t2_dp_imm(T2OP_ORR, 1, 5, 15, 200);                  /* movs r5, #200 */
+  t2_dp_imm(T2OP_SUB, 1, 15, 3, 77);                   /* cmp r3, #77 */
+  t2_dp_imm(T2OP_ADD, 1, 2, 2, 255);                   /* adds r2, #255 */
+  t2_dp_imm(T2OP_SUB, 1, 6, 6, 1);                     /* subs r6, #1 */
+  t2_dp_imm(T2OP_RSB, 1, 0, 1, 0);                     /* negs r0, r1 */
+  /* wide fallbacks stay wide: non-S / high reg */
+  t2_dp_reg(T2OP_ADD, 0, 0, 1, 2, T2SHIFT_LSL, 0);     /* add.w r0, r1, r2 */
+  t2_dp_reg(T2OP_ADD, 1, 8, 8, 2, T2SHIFT_LSL, 0);     /* adds.w r8, r8, r2 */
   t2_nop();                                            /* final pad, keeps .text 4-aligned */
 
   fwrite(buf, 1, translation_ptr - buf, stdout);
