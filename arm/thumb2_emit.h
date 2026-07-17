@@ -1887,6 +1887,21 @@ void *div6, *divarm7;
   cycle_count += 14 + 32;                                                     \
   generate_function_call(divarm7);
 
+/* BIOS HLE (CpuSet/CpuFastSet/LZ77): native C instead of emulating the
+ * BIOS loops. Stub bridges in thumb2_stub.S; C in pd_bios_hle.c. */
+#ifdef PD_BIOS_HLE
+void t2_hle_bios_arm(void);
+void t2_hle_bios_thumb(void);
+#define pd_bios_hle_handles(n)                                                \
+  ((n) == 0x0B || (n) == 0x0C || (n) == 0x11 || (n) == 0x12)
+#define arm_hle_bios(mode, num)                                               \
+  t2_load_imm32(reg_gpc, num);                                                \
+  generate_function_call(t2_hle_bios_##mode)
+#else
+#define pd_bios_hle_handles(n) 0
+#define arm_hle_bios(mode, num)
+#endif
+
 #define generate_translation_gate(type)                                       \
   generate_update_pc(pc);                                                     \
   generate_indirect_branch_no_cycle_update(type)                              \

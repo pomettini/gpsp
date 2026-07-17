@@ -41,6 +41,7 @@ SRC = playdate_main.c \
       pd_jit_smoke.c \
       pd_tcm_probe.c \
       pd_tcm_pool.c \
+      pd_bios_hle.c \
       pd_dynarec_hoststub.c
 
 # Non-.c translation units (common.mk's object list only handles .c).
@@ -91,6 +92,12 @@ endif
 # make PPUHALF=1: half-resolution PPU (render even lines, duplicate odd).
 ifeq ($(PPUHALF),1)
 UDEFS += -DPD_PPU_HALF
+endif
+
+# make BIOSHLE=1: native CpuSet/CpuFastSet/LZ77 instead of emulated BIOS
+# loops (Pokemon loads/decompression; timing collapses to ~instant).
+ifeq ($(BIOSHLE),1)
+UDEFS += -DPD_BIOS_HLE
 endif
 
 # make NARROW=1: 16-bit T1 encodings where exactly equivalent (A/B).

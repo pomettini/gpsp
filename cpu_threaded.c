@@ -231,6 +231,12 @@ typedef struct
 #define align_translation_ptr()
 #endif
 
+/* BIOS-HLE hooks (Playdate Thumb-2 backend); no-ops elsewhere. */
+#ifndef pd_bios_hle_handles
+#define pd_bios_hle_handles(n) 0
+#define arm_hle_bios(mode, num)
+#endif
+
 /* Cache invalidation */
 
 #if defined(PSP)
@@ -1750,6 +1756,10 @@ void translate_icache_sync() {
         cycle_count += 64;   /* Big under-estimation here */                  \
         arm_hle_div_arm(arm);                                                 \
       }                                                                       \
+      else if (pd_bios_hle_handles(swinum)) {                                 \
+        cycle_count += 128;  /* rough; the real op is size-dependent */       \
+        arm_hle_bios(arm, swinum);                                            \
+      }                                                                       \
       else {                                                                  \
         arm_swi();                                                            \
       }                                                                       \
@@ -2320,6 +2330,10 @@ void translate_icache_sync() {
       else if (swinum == 7) {                                                 \
         cycle_count += 64;   /* Big under-estimation here */                  \
         arm_hle_div_arm(thumb);                                               \
+      }                                                                       \
+      else if (pd_bios_hle_handles(swinum)) {                                 \
+        cycle_count += 128;  /* rough; the real op is size-dependent */       \
+        arm_hle_bios(thumb, swinum);                                          \
       }                                                                       \
       else {                                                                  \
         thumb_swi();                                                          \

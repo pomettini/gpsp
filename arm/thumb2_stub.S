@@ -615,6 +615,21 @@ thumb_label(ext_store_ignore)
 @ r3. Uses the hardware SDIV (the ARM backend emits an unrolled divider).
 @ divarm (SWI 7) takes the operands swapped.
 
+@ BIOS HLE bridge: SWI number arrives in reg_gpc; spill the mode's cached
+@ regs so C (pd_hle_bios) works on reg[], then reload.
+#define hle_bios_builder(mode)                                               ;\
+defsymbl(t2_hle_bios_##mode)                                                 ;\
+  save_flags()                                                               ;\
+  store_registers_##mode()                                                   ;\
+  mov r0, reg_gpc                                                            ;\
+  call_c_function(pd_hle_bios)                                               ;\
+  load_registers_##mode()                                                    ;\
+  restore_flags()                                                            ;\
+  bx lr                                                                      ;\
+
+hle_bios_builder(arm)
+hle_bios_builder(thumb)
+
 defsymbl(t2_hle_divarm)
   mov r2, reg_x0
   mov reg_x0, reg_x1
