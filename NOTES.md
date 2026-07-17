@@ -77,6 +77,16 @@ copies (+Thumb bit). Emitted code reads handlers from the tables at runtime,
 so already-translated blocks pick up the fast copies instantly; self-test
 failure = leave tables untouched (correct, just slower). A/B via TCMPOOL=1.
 
+## Bench 2026-07-17 77764ef RevB (heap handler pool, FireRed, bundled script)
+avg_frame_ms=28.27 (control same-day: 30.09) | est fps=35.37 | no crashes
+
+- Pool allocated at 0x90c6cb20: the malloc heap is PSRAM on this OS (no
+  user-reachable AXI). The ~6% win is real anyway: the compact 2KB handler
+  copy no longer shares I-cache sets with the churning translation caches.
+- TCM experiment verdict: DTCM = firmware-owned (postmortem below), AXI =
+  not user-reachable, heap pool = +6% and safe. Experiment closed; keep
+  TCMPOOL=1. Next perf lever: inline EWRAM/IWRAM fastpaths in emitted code.
+
 ## DTCM ownership postmortem (2026-07-17, three crash builds)
 
 **DTCM below the stack frame is firmware-OWNED on the H7 despite being
