@@ -28,12 +28,6 @@ extern void t2pool_selftest(void);
 extern u32 ld_lookup_tables[5][17];
 extern u32 st_lookup_tables[4][17];
 
-/* Clearance below the init frame. vecx used 0x2180, but gpSP's stack dives
- * far deeper (templated PPU under execute_arm_translate): the first pool
- * build at 0x2180 was overwritten by the live stack -> wild-PC crash.
- * 16KB margin; the canary below detects any future dive. */
-#define POOL_MARGIN 0x4000u
-
 static uintptr_t pool_base;  /* 0 until the copy+selftest passed */
 static volatile u32 *pool_canary; /* word just above the pool code */
 
@@ -65,11 +59,14 @@ void pd_tcm_pool_install(PlaydateAPI *pd)
 
   if (!pool_base)
   {
-    uintptr_t frame = (uintptr_t)__builtin_frame_address(0);
-    uintptr_t pool = (frame - POOL_MARGIN - size) & ~(uintptr_t)15;
-    const u32 *src = (const u32 *)__t2pool_start;   /* cacheable source */
-    volatile u32 *dst = (volatile u32 *)pool;       /* manual copy: memcpy
-                                                     * faults on DTCM (vecx) */
+    /* DTCM below the stack is firmware-OWNED on the H7 (writable but not
+     * ours: three delayed-crash builds proved it - NOTES.md). Use the
+     * malloc heap instead: it lives in on-chip AXI SRAM (0x24xxxxxx),
+     * legally ours and far cheaper on I-cache miss than external PSRAM. */
+    uintptr_t pool =
+        ((uintptr_t)pd->system->realloc(NULL, size + 64) + 15) & ~(uintptr_t)15;
+    const u32 *src = (const u32 *)__t2pool_start;
+    volatile u32 *dst = (volatile u32 *)pool;       /* keep the manual copy */
     u32 words = (u32)(size / 4), i;
     u32 (*probe)(void);
     u32 r;
