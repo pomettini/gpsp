@@ -212,7 +212,18 @@ u32 function_cc update_gba(int remaining_cycles)
           if(reg[OAM_UPDATED])
             oam_update_count++;
 
+#ifdef PD_PPU_HALF
+          // Half-resolution PPU: render even lines, duplicate odd ones
+          // (the 1-bit Bayer dither at blit time varies per screen row,
+          // masking the halved source resolution).
+          if (!(vcount & 1) || vcount == 0)
+            update_scanline();
+          else if (!skip_next_frame)
+            memcpy(gba_screen_pixels + vcount * 240,
+                   gba_screen_pixels + (vcount - 1) * 240, 240 * 2);
+#else
           update_scanline();
+#endif
 
           // Trigger the HBlank DMAs if enabled
           for (i = 0; i < 4; i++)

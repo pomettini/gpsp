@@ -88,6 +88,11 @@ ifeq ($(TCMPOOL),2)
 UDEFS += -DPD_TCM_POOL -DPD_TCM_POOL_NOPATCH
 endif
 
+# make PPUHALF=1: half-resolution PPU (render even lines, duplicate odd).
+ifeq ($(PPUHALF),1)
+UDEFS += -DPD_PPU_HALF
+endif
+
 # make NARROW=1: 16-bit T1 encodings where exactly equivalent (A/B).
 ifeq ($(NARROW),1)
 UDEFS += -DPD_NARROW
