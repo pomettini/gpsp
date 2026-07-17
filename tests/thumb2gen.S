@@ -67,6 +67,19 @@ b4:
   blt.w b4 - 64
 b5:
   b.w b5 - 1024
+  cbz r3, 98f
+  nop
+  nop
+  nop
+  nop
+  nop
+98:
+  ubfx r1, r0, #0, #15
+  ubfx r4, r5, #3, #8
+  ldrb.w r0, [r2, r1]
+  ldrsb.w r0, [r2, r1]
+  ldrh.w r3, [r4, r5, lsl #1]
+  ldrsh.w r3, [r4, r5]
   addw r0, r1, #4095
   subw r2, r3, #0x8D0
   nop

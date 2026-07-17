@@ -72,6 +72,14 @@ int main(void)
   { u8 *from = translation_ptr; t2_b_cond_w(from, from - 64, T2_CC_LT); }
   { u8 *from = translation_ptr; t2_b_w(from, from - 1024); }
 
+  t2_cbz(3, 8);                                        /* cbz r3, 99f (5 nops) */
+  t2_nop(); t2_nop(); t2_nop(); t2_nop(); t2_nop();
+  t2_ubfx(1, 0, 0, 15);                                /* ubfx r1, r0, #0, #15 */
+  t2_ubfx(4, 5, 3, 8);                                 /* ubfx r4, r5, #3, #8 */
+  t2_ldrb_reg(0, 2, 1, 0);                             /* ldrb.w r0, [r2, r1] */
+  t2_ldrsb_reg(0, 2, 1, 0);                            /* ldrsb.w r0, [r2, r1] */
+  t2_ldrh_reg(3, 4, 5, 1);                             /* ldrh.w r3, [r4, r5, lsl #1] */
+  t2_ldrsh_reg(3, 4, 5, 0);                            /* ldrsh.w r3, [r4, r5] */
   t2_addw(0, 1, 4095);                                 /* addw r0, r1, #4095 */
   t2_subw(2, 3, 0x8D0);                                /* subw r2, r3, #0x8D0 */
   t2_nop();                                            /* final pad, keeps .text 4-aligned */

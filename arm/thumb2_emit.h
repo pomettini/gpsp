@@ -1250,6 +1250,73 @@ static void trace_instruction(u32 pc, u32 mode)
 #define generate_load_call_s16(pcval)        generate_load_call_mbyte(7, 1, pcval)
 #define generate_load_call_u32(pcval)        generate_load_call_mbyte(8, 2, pcval)
 
+#ifdef PD_INLINE_MEM
+/* Inline load fastpath: memory_map_read covers BIOS/EWRAM/IWRAM/IO/VRAM
+ * (with mirrors) and resident ROM pages, NULL elsewhere - so a page lookup
+ * plus direct load serves the hot regions with no handler call, falling
+ * back to the dispatch tables for palette/OAM/unmapped/evicted pages.
+ * Accuracy note: region-0 loads bypass the open-bus PC check (accepted).
+ * Flag-transparent: no S-forms, CBZ does not read or write flags. */
+
+#define t2_inline_ld_head(fast_size)                                          \
+  t2_mov_reg_shift(0, reg_a2, reg_a0, T2SHIFT_LSR, 15);                       \
+  t2_addw(reg_a2, reg_a2, (0xD00 >> 2));    /* RDMAP_OFF in words */          \
+  t2_ldr_reg(reg_a2, reg_base, reg_a2, 2);                                    \
+  t2_cbz(reg_a2, (fast_size) + 2)           /* page miss -> fallback */       \
+
+#define t2_inline_ld_tail(tblnum, abits, pcval)                               \
+{                                                                             \
+  u8 *t2_bw_site = translation_ptr;                                          \
+  t2_b_w(translation_ptr, translation_ptr);  /* over the fallback */          \
+  t2_load_imm32(reg_gpc, pcval);                                              \
+  mem_calc_region(abits);                                                     \
+  t2_addw(reg_a2, reg_a2, (STORE_TBL_OFF + 68*tblnum + 4) >> 2);              \
+  t2_ldr_reg(reg_a2, reg_base, reg_a2, 2);                                    \
+  t2_blx(reg_a2);                                                             \
+  t2_patch_branch(t2_bw_site, translation_ptr);                               \
+}                                                                             \
+
+#undef generate_load_call_u8
+#undef generate_load_call_s8
+#undef generate_load_call_u16
+#undef generate_load_call_s16
+#undef generate_load_call_u32
+
+#define generate_load_call_u8(pcval)                                          \
+  t2_inline_ld_head(8);                                                       \
+  t2_ubfx(reg_a1, reg_a0, 0, 15);                                             \
+  t2_ldrb_reg(reg_rv, reg_a2, reg_a1, 0);                                     \
+  t2_inline_ld_tail(4, 0, pcval)                                              \
+
+#define generate_load_call_s8(pcval)                                          \
+  t2_inline_ld_head(8);                                                       \
+  t2_ubfx(reg_a1, reg_a0, 0, 15);                                             \
+  t2_ldrsb_reg(reg_rv, reg_a2, reg_a1, 0);                                    \
+  t2_inline_ld_tail(5, 0, pcval)                                              \
+
+#define generate_load_call_u16(pcval)                                         \
+  t2_inline_ld_head(12);                                                      \
+  t2_ubfx(reg_a1, reg_a0, 0, 15);                                             \
+  t2_dp_imm(T2OP_BIC, 0, reg_a1, reg_a1, 1);                                  \
+  t2_ldrh_reg(reg_rv, reg_a2, reg_a1, 0);                                     \
+  t2_inline_ld_tail(6, 1, pcval)                                              \
+
+#define generate_load_call_s16(pcval)                                         \
+  t2_inline_ld_head(12);                                                      \
+  t2_ubfx(reg_a1, reg_a0, 0, 15);                                             \
+  t2_dp_imm(T2OP_BIC, 0, reg_a1, reg_a1, 1);                                  \
+  t2_ldrsh_reg(reg_rv, reg_a2, reg_a1, 0);                                    \
+  t2_inline_ld_tail(7, 1, pcval)                                              \
+
+#define generate_load_call_u32(pcval)                                         \
+  t2_inline_ld_head(12);                                                      \
+  t2_ubfx(reg_a1, reg_a0, 0, 15);                                             \
+  t2_dp_imm(T2OP_BIC, 0, reg_a1, reg_a1, 3);                                  \
+  t2_ldr_reg(reg_rv, reg_a2, reg_a1, 0);                                      \
+  t2_inline_ld_tail(8, 2, pcval)                                              \
+
+#endif /* PD_INLINE_MEM */
+
 #define arm_access_memory_load(mem_type)                                      \
   cycle_count += 2;                                                           \
   generate_load_call_##mem_type(pc);                                          \

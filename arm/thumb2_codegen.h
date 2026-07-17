@@ -289,6 +289,29 @@ static inline void t2_patch_branch(u8 *dest, u8 *target)
   t2_write16(0xB900 | ((((imm) >> 6) & 1) << 9) | ((((imm) >> 1) & 0x1F) << 3)\
              | (rn))                                                          \
 
+#define t2_cbz(rn, imm)                                                       \
+  t2_write16(0xB100 | ((((imm) >> 6) & 1) << 9) | ((((imm) >> 1) & 0x1F) << 3)\
+             | (rn))                                                          \
+
+/* UBFX rd, rn, #lsb, #width. */
+#define t2_ubfx(rd, rn, lsb, width)                                           \
+  t2_write32(0xF3C0 | (rn),                                                   \
+             ((((lsb) >> 2) & 7) << 12) | ((rd) << 8) |                       \
+             (((lsb) & 3) << 6) | ((width) - 1))                              \
+
+/* Byte/halfword loads, register offset (LSL 0..3). */
+#define t2_ldrb_reg(rt, rn, rm, lsl)                                          \
+  t2_write32(0xF810 | (rn), ((rt) << 12) | ((lsl) << 4) | (rm))               \
+
+#define t2_ldrsb_reg(rt, rn, rm, lsl)                                         \
+  t2_write32(0xF910 | (rn), ((rt) << 12) | ((lsl) << 4) | (rm))               \
+
+#define t2_ldrh_reg(rt, rn, rm, lsl)                                          \
+  t2_write32(0xF830 | (rn), ((rt) << 12) | ((lsl) << 4) | (rm))               \
+
+#define t2_ldrsh_reg(rt, rn, rm, lsl)                                         \
+  t2_write32(0xF930 | (rn), ((rt) << 12) | ((lsl) << 4) | (rm))               \
+
 /* IT: next instruction conditional on cond. */
 #define t2_it(cond)      t2_write16(0xBF00 | ((cond) << 4) | 0x8)
 

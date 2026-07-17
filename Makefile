@@ -88,6 +88,11 @@ ifeq ($(TCMPOOL),2)
 UDEFS += -DPD_TCM_POOL -DPD_TCM_POOL_NOPATCH
 endif
 
+# make INLINEMEM=1: inline load fastpaths in emitted code (A/B experiment).
+ifeq ($(INLINEMEM),1)
+UDEFS += -DPD_INLINE_MEM
+endif
+
 # Thumb-2 dynarec (arm/thumb2_emit.h), ON by default since bring-up passed
 # (FireRed 2.5x, stable in gameplay). DYNAREC=0 builds the interpreter for
 # A/B comparisons. The dynarec executes on DEVICE only; the simulator build
