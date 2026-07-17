@@ -132,15 +132,15 @@ void pd_hle_bios(u32 num)
             u32 c;
             if (off)
             {
-              /* back-reference relative to the WRITTEN stream: bytes
-               * already flushed live at dst..; the last (pend_n) byte may
-               * still be pending in `pend`. */
-              u32 back = pend_n + off;
-              if (back <= pend_n)
-                c = (pend >> ((pend_n - back) * 8)) & 0xFF;
+              /* Back-reference against the LOGICAL output position
+               * (dst + pend_n): off==1 with a pending byte references the
+               * byte still buffered in `pend`; anything further back is in
+               * already-flushed memory at dst + pend_n - off. */
+              if (off <= pend_n)
+                c = pend & 0xFF;
               else
               {
-                u32 a = dst - (back - pend_n);
+                u32 a = dst + pend_n - off;
                 c = (read_memory16(a & ~1U) >> ((a & 1) * 8)) & 0xFF;
               }
             }
