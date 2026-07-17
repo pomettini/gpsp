@@ -88,6 +88,12 @@ ifeq ($(TCMPOOL),2)
 UDEFS += -DPD_TCM_POOL -DPD_TCM_POOL_NOPATCH
 endif
 
+# make SCHEDSTATS=1: count+sample update_gba scheduler round-trips
+# (perf.log gains a "gba" field). Tiny per-call overhead; A/B only.
+ifeq ($(SCHEDSTATS),1)
+UDEFS += -DPD_SCHED_STATS
+endif
+
 # make PPUOFF=1: skip ALL rendering to measure the PPU's share of frame
 # time (screen freezes by design; read perf.log's emu avg).
 ifeq ($(PPUOFF),1)

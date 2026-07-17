@@ -117,9 +117,28 @@ void init_main(void)
 #endif
 }
 
+#ifdef PD_SCHED_STATS
+/* Scheduler-cost instrumentation (Playdate, SCHEDSTATS=1): every call is
+ * counted; 1 in 64 is timed through the shell's microsecond clock. */
+u32 pd_updgba_calls;
+u32 pd_updgba_sampled_us;
+u32 pd_updgba_samples;
+float (*pd_elapsed_cb)(void);
+#endif
+
 u32 function_cc update_gba(int remaining_cycles)
 {
   u32 changed_pc = 0;
+#ifdef PD_SCHED_STATS
+  float pd_t0 = 0.0f;
+  int pd_sampled = 0;
+  pd_updgba_calls++;
+  if (pd_elapsed_cb && !(pd_updgba_calls & 63))
+  {
+    pd_t0 = pd_elapsed_cb();
+    pd_sampled = 1;
+  }
+#endif
   u32 frame_complete = 0;
   irq_type irq_raised = IRQ_NONE;
   int dma_cycles;
@@ -300,6 +319,13 @@ u32 function_cc update_gba(int remaining_cycles)
   dma_cycles = MIN(64, dma_cycles);
   dma_cycles = MIN(execute_cycles, dma_cycles);
 
+#ifdef PD_SCHED_STATS
+  if (pd_sampled)
+  {
+    pd_updgba_sampled_us += (u32)((pd_elapsed_cb() - pd_t0) * 1e6f);
+    pd_updgba_samples++;
+  }
+#endif
   return (execute_cycles - dma_cycles) | changed_pc | frame_complete;
 }
 

@@ -382,6 +382,30 @@ static void perf_flush(u32 now)
       last_flush_count = flush_ram_count;
     }
 #endif
+#ifdef PD_SCHED_STATS
+    {
+      /* Scheduler round-trips: calls per guest frame and the sampled
+       * per-call cost, extrapolated to ms per frame. */
+      extern u32 pd_updgba_calls, pd_updgba_sampled_us, pd_updgba_samples;
+      static u32 last_calls, last_us, last_samples;
+      u32 dcalls = pd_updgba_calls - last_calls;
+      u32 dus = pd_updgba_sampled_us - last_us;
+      u32 dsamples = pd_updgba_samples - last_samples;
+      u32 uspercall = dsamples ? dus / dsamples : 0;
+      u32 est_us_frame = (dcalls / (perf_updates ? perf_updates : 1)) * uspercall;
+      last_calls = pd_updgba_calls;
+      last_us = pd_updgba_sampled_us;
+      last_samples = pd_updgba_samples;
+      if (len > 0 && line[len - 1] == '\n')
+        len--;
+      len += snprintf(line + len, sizeof(line) - len,
+                      " | gba=%u/upd %uus est=%u.%01ums\n",
+                      (unsigned)(dcalls / (perf_updates ? perf_updates : 1)),
+                      (unsigned)uspercall,
+                      (unsigned)(est_us_frame / 1000),
+                      (unsigned)((est_us_frame % 1000) / 100));
+    }
+#endif
 #if defined(PD_TCM_POOL) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
     {
       extern int pd_tcm_pool_ok(void);
@@ -651,6 +675,12 @@ int eventHandler(PlaydateAPI *playdate, PDSystemEvent event, uint32_t arg)
        * PD_TRANSLATE_DUMP) but must never execute emitted Thumb-2. */
       thumb2_cache_sync_cb = pd->system->clearICache;
       dynarec_enable = 1;
+#endif
+#ifdef PD_SCHED_STATS
+      {
+        extern float (*pd_elapsed_cb)(void);
+        pd_elapsed_cb = pd->system->getElapsedTime;
+      }
 #endif
 
       init_gamepak_buffer();
