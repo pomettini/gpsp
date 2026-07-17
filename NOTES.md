@@ -115,6 +115,20 @@ Kirby Nightmare in Dream Land | 34.98 | 28.6   | 27%      | 254
   frame time) + optionally a cheap-PPU mode (12ms/rendered frame; more
   rendered frames = visibly smoother, esp. Wario at 46%).
 
+## Bench 2026-07-17 accd848 RevB (SCHEDBATCH, FireRed, bundled script)
+avg=26.12ms (was 28.2) | est fps=38.28 | emu 21.7-23.2 | RENDERED 50% (was 30%)
+
+- Scheduler calls collapsed 668 -> 225/frame exactly as designed; ~2.5ms
+  emu win AND rendered-frame share jumped to 50% (big perceptual gain).
+  FireRed correct: game plays, music tempo right (hblank-flag polling and
+  cascade undercount not exercised). Audio choppiness unchanged
+  (pre-existing under-speed gaps).
+- SCHEDBATCH stays OPT-IN until validated on Wario/Kirby (hblank-flag
+  polarity and cascade caveats in the commit) - then default it.
+- Roadmap remainder to native (in order): 16-bit emission pass (emitted
+  fetch), cheap-PPU mode (12ms/rendered frame), audio 32kHz, underclock
+  knob, BIOS CpuSet/LZ77 HLE (Pokemon-heavy).
+
 ## Scheduler cost measurement (2026-07-17, SCHEDSTATS, FireRed)
 
 perf.log: **gba=666-669 calls per guest frame, 18-19us sampled per call,
