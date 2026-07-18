@@ -251,9 +251,11 @@ u32 gbc_sound_master_volume;
       }                                                                       \
                                                                               \
       /* (131072/(2048-rate))*8 / sound_frequency, in 16.16 fixed point.      \
-       * sound_frequency == 2^16 makes this exactly 2^20/(2048-rate).         \
-       * Verified bit-identical to the float form for rate 0..2047.           */ \
-      frequency_step = (fixed16_16)(1048576u / (2048 - rate));                \
+       * At sound_frequency == 2^16 this is exactly 2^20/(2048-rate)          \
+       * (bit-identical to the old hardcoded constant); the general form      \
+       * keeps PSG pitch correct at other mix rates (SOUND32K).               */ \
+      frequency_step = (fixed16_16)((u32)((131072ull * 8 * 65536) /           \
+                        GBA_SOUND_FREQUENCY) / (2048 - rate));                \
                                                                               \
       gs->frequency_step = frequency_step;                                    \
       gs->rate = rate;                                                        \
