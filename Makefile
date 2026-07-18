@@ -94,6 +94,12 @@ ifeq ($(PPUHALF),1)
 UDEFS += -DPD_PPU_HALF
 endif
 
+# make SOUND32K=1: mix guest audio at 32.768kHz instead of 65.536kHz
+# (halves PSG mixing cost; inaudible on the Playdate speaker).
+ifeq ($(SOUND32K),1)
+UDEFS += -DGBA_SOUND_FREQUENCY='(32*1024)'
+endif
+
 # make BIOSHLE=1: native CpuSet/CpuFastSet/LZ77 instead of emulated BIOS
 # loops (Pokemon loads/decompression; timing collapses to ~instant).
 ifeq ($(BIOSHLE),1)
