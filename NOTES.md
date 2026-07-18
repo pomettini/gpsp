@@ -143,6 +143,31 @@ avg=25.61ms (was 26.12) | est fps=39.05 | emu 20.9-21.0 | romtx 873KB (was 896)
   BIOS CpuSet/LZ77 HLE. All flags still opt-in pending Wario/Kirby
   validation.
 
+## Budget reconciliation (2026-07-18, lookup instrumentation, FireRed)
+
+lookup=133/frame, gba est~12ms (incl ~2ms getElapsedTime overhead -> ~10ms
+real). KEY REALIZATION: "gba est" samples the WHOLE update_gba, and
+update_scanline (PPU) is called INSIDE update_gba - so the scheduler figure
+already contains PPU render. Corrected budget of the 22.3ms emu:
+  - update_gba bundle (scheduler + PPU render): ~10ms real
+  - emitted-code execution + 133 C block-lookups + handlers: ~12ms
+Native target 16.7ms; frame avg 26.5 (emu 22.3 + aud 1.8 + blit 2.9).
+
+## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
+1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.
+   Push further - lazy VCOUNT so vdraw scanlines coalesce when no per-line
+   IRQ/DMA/hblank flag is armed (Pokemon overworld: none). Target <120
+   calls. Also: the PPU render inside it is the real pixel cost - a
+   dirty-region skip (only re-render changed BG/OBJ scanlines) is possible.
+2. Inline PC->block cache (133 lookups/frame): direct-mapped [hash]->{pc,ptr}
+   checked in-stub before the C fallback. ~1-2ms.
+3. PC-literal pools (emitted size -> fetch): ~10-15% code, the general lever.
+4. Trims: underclock knob, audio call batching.
+Honest ceiling: even stacked, FireRed to true 16.7ms is not guaranteed on
+this fetch fabric; likeliest outcome is ~20ms (50 fps emulated, ~all frames
+rendered = feels native) with Wario/Kirby close behind. Full 59.7 native
+may require the block-linking of indirect branches (#2) to land big.
+
 ## Session 2026-07-18: BIOS HLE + render/audio quality passes
 
 - BIOS HLE (BIOSHLE=1) shipped: CpuSet/CpuFastSet/LZ77 native. Bench-flat
