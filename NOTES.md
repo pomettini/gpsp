@@ -143,6 +143,25 @@ avg=25.61ms (was 26.12) | est fps=39.05 | emu 20.9-21.0 | romtx 873KB (was 896)
   BIOS CpuSet/LZ77 HLE. All flags still opt-in pending Wario/Kirby
   validation.
 
+## Session 2026-07-18: BIOS HLE + render/audio quality passes
+
+- BIOS HLE (BIOSHLE=1) shipped: CpuSet/CpuFastSet/LZ77 native. Bench-flat
+  as expected (intro is dialog); the win is in door/battle transitions.
+  Shipped with an LZ77-VRAM back-reference bug (logical position math) that
+  corrupted decompressed fonts/sprites - fixed same day. LESSON: HLE
+  decompressors get host-side unit tests against reference data BEFORE the
+  flag defaults on.
+- Contrast S-curve in the luminance LUT: linear mapping had dithered text
+  and mid-dark backgrounds into competing checkers since Phase 2; squaring
+  toward the extremes made dialogue readable (user-verified).
+- SOUND32K tried (-0.85ms, 25.19ms avg / 39.7 est fps): PSG pitch fixed
+  (frequency step now derives from the mix rate - bit-identical at 64k),
+  but residual square-wave aliasing stays audibly harsh. DROPPED from the
+  shipping stack: 0.85ms is not worth twice-flagged audio. Flag remains.
+- Shipping stack: BIOSHLE + NARROW + SCHEDBATCH + TCMPOOL + INLINEMEM at
+  ~26ms / ~38.4 est fps / ~50% rendered. Remaining levers: PC-literal
+  pools, then Wario/Kirby validation sweep before defaulting the stack.
+
 ## PPUHALF experiment: KILLED (2026-07-17, FireRed)
 
 avg=25.67 (flat vs 25.61) AND a real artifact: FireRed's intro portraits
