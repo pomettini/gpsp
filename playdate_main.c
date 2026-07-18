@@ -387,6 +387,8 @@ static void perf_flush(u32 now)
       /* Scheduler round-trips: calls per guest frame and the sampled
        * per-call cost, extrapolated to ms per frame. */
       extern u32 pd_updgba_calls, pd_updgba_sampled_us, pd_updgba_samples;
+      extern u32 pd_lookup_calls;
+      static u32 last_lookups;
       static u32 last_calls, last_us, last_samples;
       u32 dcalls = pd_updgba_calls - last_calls;
       u32 dus = pd_updgba_sampled_us - last_us;
@@ -399,11 +401,14 @@ static void perf_flush(u32 now)
       if (len > 0 && line[len - 1] == '\n')
         len--;
       len += snprintf(line + len, sizeof(line) - len,
-                      " | gba=%u/upd %uus est=%u.%01ums\n",
+                      " | gba=%u/upd %uus est=%u.%01ums lookup=%u/upd\n",
                       (unsigned)(dcalls / (perf_updates ? perf_updates : 1)),
                       (unsigned)uspercall,
                       (unsigned)(est_us_frame / 1000),
-                      (unsigned)((est_us_frame % 1000) / 100));
+                      (unsigned)((est_us_frame % 1000) / 100),
+                      (unsigned)((pd_lookup_calls - last_lookups) /
+                                 (perf_updates ? perf_updates : 1)));
+      last_lookups = pd_lookup_calls;
     }
 #endif
 #if defined(PD_TCM_POOL) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)

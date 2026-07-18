@@ -2680,9 +2680,16 @@ u8 function_cc *block_lookup_address_dual(u32 pc)
   }
 }
 
+#ifdef PD_SCHED_STATS
+u32 pd_lookup_calls; /* runtime block lookups (indirect branches etc.) */
+#endif
+
 u8 function_cc *block_lookup_address_arm(u32 pc)
 {
   unsigned i;
+#ifdef PD_SCHED_STATS
+  pd_lookup_calls++;
+#endif
   for (i = 0; i < 4; i++) {
     u8 *ret = block_lookup_translate_arm(pc);
     if (ret) {
@@ -2699,6 +2706,9 @@ u8 function_cc *block_lookup_address_arm(u32 pc)
 u8 function_cc *block_lookup_address_thumb(u32 pc)
 {
   unsigned i;
+#ifdef PD_SCHED_STATS
+  pd_lookup_calls++;
+#endif
   for (i = 0; i < 4; i++) {
     u8 *ret = block_lookup_translate_thumb(pc);
     if (ret) {
