@@ -117,6 +117,12 @@ ifeq ($(SCHEDBATCH),1)
 UDEFS += -DPD_SCHED_BATCH
 endif
 
+# make SCHEDBATCH2=1: additionally fast-forward vdraw on skipped frames
+# when nothing per-line is armed (VCOUNT stales during the jump).
+ifeq ($(SCHEDBATCH2),1)
+UDEFS += -DPD_SCHED_BATCH2
+endif
+
 # make SCHEDSTATS=1: count+sample update_gba scheduler round-trips
 # (perf.log gains a "gba" field). Tiny per-call overhead; A/B only.
 ifeq ($(SCHEDSTATS),1)

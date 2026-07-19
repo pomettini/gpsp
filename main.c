@@ -245,6 +245,22 @@ u32 function_cc update_gba(int remaining_cycles)
 pd_line_advance:
         dispstat &= ~0x02;
         vcount++;
+#ifdef PD_SCHED_BATCH2
+        /* Vdraw fast-forward: on a SKIPPED frame with nothing per-line
+         * armed (no hblank/vcount IRQ, no hblank flag reader can matter,
+         * no HDMA), jump straight to the last vdraw line in one event.
+         * VCOUNT is stale during the jump - the gated accuracy trade. */
+        if (skip_next_frame && vcount < 159 && !(dispstat & 0x30) &&
+            dma[0].start_type != DMA_START_HBLANK &&
+            dma[1].start_type != DMA_START_HBLANK &&
+            dma[2].start_type != DMA_START_HBLANK &&
+            dma[3].start_type != DMA_START_HBLANK)
+        {
+          u32 pd_ff = 159 - vcount;
+          video_count += pd_ff * 1232;
+          vcount += pd_ff;
+        }
+#endif
 #else
       }
       else
