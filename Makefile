@@ -135,6 +135,12 @@ ifeq ($(FRAMEDUMP),1)
 UDEFS += -DPD_FRAME_DUMP
 endif
 
+# make LITPOOL=1: per-block PC-literal pools in emitted code (4-byte LDR
+# literal instead of 8-byte MOVW/MOVT; shrinks the executed stream).
+ifeq ($(LITPOOL),1)
+UDEFS += -DPD_LIT_POOL
+endif
+
 # make SCHEDSTATS=1: count+sample update_gba scheduler round-trips
 # (perf.log gains a "gba" field). Tiny per-call overhead; A/B only.
 ifeq ($(SCHEDSTATS),1)

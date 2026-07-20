@@ -237,6 +237,21 @@ typedef struct
 #define arm_hle_bios(mode, num)
 #endif
 
+/* PC-literal pools (Thumb-2 backend, PD_LIT_POOL): reset per block,
+ * span-checked once per translated guest instruction, flushed after the
+ * translation gate. No-ops on other backends. */
+#if defined(PD_LIT_POOL) && defined(THUMB2_ARCH)
+#define pd_lit_reset()      t2_lit_reset()
+#define pd_lit_hook()                                                         \
+  if (t2_lit_need_flush())                                                    \
+    t2_lit_flush_mid(&translation_ptr)
+#define pd_lit_end_flush()  t2_lit_flush(&translation_ptr)
+#else
+#define pd_lit_reset()
+#define pd_lit_hook()
+#define pd_lit_end_flush()
+#endif
+
 /* Cache invalidation */
 
 #if defined(PSP)
@@ -3127,6 +3142,7 @@ bool translate_block_arm(u32 pc, bool ram_region)
      TRANSLATION_CACHE_LIMIT_THRESHOLD;
   }
 
+  pd_lit_reset();
   generate_block_prologue();
 
   /* This is a function because it's used a lot more than it might seem (all
@@ -3174,6 +3190,7 @@ bool translate_block_arm(u32 pc, bool ram_region)
     update_pc_limits();
     translate_arm_instruction();
     block_data_position++;
+    pd_lit_hook();
 
     /* If it went too far the cache needs to be flushed and the process
        restarted. Because we might already be nested several stages in
@@ -3231,6 +3248,7 @@ bool translate_block_arm(u32 pc, bool ram_region)
     }
   }
 
+  pd_lit_end_flush();
   align_translation_ptr();
   if (ram_region)
     ram_translation_ptr = translation_ptr;
@@ -3291,6 +3309,7 @@ bool translate_block_thumb(u32 pc, bool ram_region)
        ROM_TRANSLATION_CACHE_SIZE - TRANSLATION_CACHE_LIMIT_THRESHOLD];
   }
 
+  pd_lit_reset();
   generate_block_prologue();
 
   /* This is a function because it's used a lot more than it might seem (all
@@ -3336,6 +3355,7 @@ bool translate_block_thumb(u32 pc, bool ram_region)
     update_pc_limits();
     translate_thumb_instruction();
     block_data_position++;
+    pd_lit_hook();
 
     /* If it went too far the cache needs to be flushed and the process
        restarted. Because we might already be nested several stages in
@@ -3389,6 +3409,7 @@ bool translate_block_thumb(u32 pc, bool ram_region)
     }
   }
 
+  pd_lit_end_flush();
   align_translation_ptr();
   if (ram_region)
     ram_translation_ptr = translation_ptr;

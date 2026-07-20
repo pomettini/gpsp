@@ -228,7 +228,7 @@ static inline void t2_dp_reg_f(u8 **tp, u32 op, u32 s, u32 rd, u32 rn,
   t2_write32(0xF2C0 | ((((imm16) >> 11) & 1) << 10) | (((imm16) >> 12) & 0xF),\
              ((((imm16) >> 8) & 7) << 12) | ((rd) << 8) | ((imm16) & 0xFF))   \
 
-#define t2_load_imm32(rd, imm32)                                              \
+#define t2_load_imm32_mov(rd, imm32)                                          \
 {                                                                             \
   t2_movw(rd, (imm32) & 0xFFFF);                                              \
   if ((u32)(imm32) >> 16)                                                     \
@@ -236,6 +236,10 @@ static inline void t2_dp_reg_f(u8 **tp, u32 op, u32 s, u32 rd, u32 rn,
     t2_movt(rd, ((u32)(imm32) >> 16) & 0xFFFF);                               \
   }                                                                           \
 }                                                                             \
+
+#ifndef PD_LIT_POOL
+#define t2_load_imm32 t2_load_imm32_mov
+#endif
 
 /* --- Multiplies ------------------------------------------------------------ */
 #define t2_mul(rd, rn, rm)                                                    \
@@ -401,5 +405,123 @@ static inline void t2_patch_branch(u8 *dest, u8 *target)
 /* PUSH.W/POP.W with a 16-bit register list mask. */
 #define t2_push(list)    t2_write32(0xE92D, (list))
 #define t2_pop(list)     t2_write32(0xE8BD, (list))
+
+
+/* --- PC-literal pools (PD_LIT_POOL) ----------------------------------------
+ * 32-bit constants (mostly guest PCs) load with a 4-byte LDR (literal)
+ * against a per-block pool instead of an 8-byte MOVW/MOVT pair, shrinking
+ * the EXECUTED stream (the pool itself is never fetched as code). Sites
+ * are recorded with a zero offset and backpatched when the pool is
+ * emitted: normally once per block after the translation gate, or
+ * mid-block (branching over the pool) when the translate loop's hook
+ * sees the pending span nearing the LDR-literal +4095 reach (2560-byte
+ * guard: worst remaining growth is one guest instruction plus the pool
+ * itself, bounded well under the 1535 bytes of slack). Constants
+ * below 64K keep a single MOVW (same size, no pool entry). */
+#ifdef PD_LIT_POOL
+
+#define T2_LIT_MAX 128
+
+static u32 t2_lit_vals[T2_LIT_MAX];
+static u8 *t2_lit_sites[T2_LIT_MAX];
+static u8  t2_lit_vidx[T2_LIT_MAX];
+static u32 t2_lit_nvals, t2_lit_nsites;
+
+static inline void t2_lit_reset(void)
+{
+  t2_lit_nvals = 0;
+  t2_lit_nsites = 0;
+}
+
+/* Record a pooled load site and emit the LDR with offset 0 (patched at
+ * flush). Returns 0 when tables are full; caller falls back to MOVW/MOVT. */
+static inline int t2_lit_load(u8 **tp, u32 rd, u32 val)
+{
+  u32 i;
+  u16 *hw;
+  if (t2_lit_nsites >= T2_LIT_MAX)
+    return 0;
+  for (i = 0; i < t2_lit_nvals; i++)
+    if (t2_lit_vals[i] == val)
+      break;
+  if (i == t2_lit_nvals)
+  {
+    if (t2_lit_nvals >= T2_LIT_MAX)
+      return 0;
+    t2_lit_vals[t2_lit_nvals++] = val;
+  }
+  t2_lit_sites[t2_lit_nsites] = *tp;
+  t2_lit_vidx[t2_lit_nsites++] = (u8)i;
+  hw = (u16 *)*tp;
+  hw[0] = 0xF8DF;                        /* LDR.W rd, [pc, #off] (U=1) */
+  hw[1] = (u16)(rd << 12);
+  *tp += 4;
+  return 1;
+}
+
+/* Emit the pool at *tp and backpatch every pending site. The caller
+ * guarantees no execution path reaches *tp (end of block, or after a
+ * branch emitted by t2_lit_flush_mid). */
+static inline void t2_lit_flush(u8 **tp)
+{
+  u32 i;
+  u8 *pool;
+  if (!t2_lit_nsites)
+  {
+    t2_lit_nvals = 0;
+    return;
+  }
+  if ((uintptr_t)*tp & 2)
+  {
+    *(u16 *)*tp = 0xBF00;                /* alignment pad, never executed */
+    *tp += 2;
+  }
+  pool = *tp;
+  for (i = 0; i < t2_lit_nvals; i++)
+  {
+    *(u32 *)*tp = t2_lit_vals[i];
+    *tp += 4;
+  }
+  for (i = 0; i < t2_lit_nsites; i++)
+  {
+    u8 *site = t2_lit_sites[i];
+    u32 base = ((u32)(uintptr_t)site + 4) & ~3U;
+    u32 off = (u32)((uintptr_t)pool + 4 * t2_lit_vidx[i]) - base;
+    ((u16 *)site)[1] |= (u16)off;        /* off <= 4095 by the span guard */
+  }
+  t2_lit_reset();
+}
+
+static inline void t2_lit_flush_mid(u8 **tp)
+{
+  u8 *bsite;
+  if (!t2_lit_nsites)
+    return;
+  bsite = *tp;
+  {
+    u8 *translation_ptr = *tp;
+    t2_b_w(translation_ptr, translation_ptr);  /* placeholder, patched */
+    *tp = translation_ptr;
+  }
+  t2_lit_flush(tp);
+  t2_patch_branch(bsite, *tp);
+}
+
+/* Flush before the pending span outgrows LDR-literal reach: the oldest
+ * site must stay within +4095 of the pool, minus the pool's own worst
+ * case (128*4 + pad) and the emitter's per-instruction growth. */
+#define t2_lit_need_flush()                                                   \
+  (t2_lit_nsites &&                                                           \
+   ((t2_lit_nsites >= 96) ||                                                  \
+    ((u32)(translation_ptr - t2_lit_sites[0]) > 2560)))
+
+#define t2_load_imm32(rd, imm32)                                              \
+{                                                                             \
+  if (!((u32)(imm32) >> 16) ||                                                \
+      !t2_lit_load(&translation_ptr, (rd), (u32)(imm32)))                     \
+    t2_load_imm32_mov(rd, imm32);                                             \
+}                                                                             \
+
+#endif /* PD_LIT_POOL */
 
 #endif /* THUMB2_CODEGEN_H */
