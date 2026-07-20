@@ -207,10 +207,37 @@ Round-1 verdicts (2026-07-20, overworld bench):
   (flat) this establishes: the M7 here is PSRAM-LATENCY-bound, not
   fetch-bandwidth-bound - never trade instruction bytes for data reads.
 
-Next candidates: emitted-code quality audit via the host translation
-dump (host insts per guest inst, find fat in hot overworld blocks),
-blit u32 pass (~3.3ms -> target half), SOUND32K revisit (0.85ms, needs
-the residual PSG aliasing addressed first).
+## Emitted-code audit + COMPACTMEM (2026-07-20)
+
+Corpus: device translation cache after the overworld bench (DUMPJIT=1 ->
+Data/jitrom.bin + jithash.bin + jitram.bin; analysis in the session log).
+5778 blocks, 419k insts, 1.5MB. Findings: ~55% of all emitted bytes were
+per-site memory-op scaffolding (inline fastpath + fallback + region
+dispatch + PC pair); peephole-level fat (mov pairs, adds #0, dead cmp)
+only ~2%. Idle-loop elimination confirmed WORKING (vblank wait's backward
+branch calls update_gba_idle).
+
+COMPACTMEM (kept): all 9 region-dispatch sequences moved into shared
+stub dispatchers (arm/thumb2_stub.S mem_dispatch_builder); sites shrink
+to movw/movt(pc)+BL. Same-workload romtx 1860 -> 996KB (-46%). emuS
+19.5-20.6 -> 19.0-19.2ms, bench flat. Byte-identical dispatch verified
+against the corpus disassembly. INLINEMEM dropped from the stack (its
+inline fastpaths are superseded; flag remains).
+
+**THE WALL, quantified**: halving fetch volume bought <1ms, inline loads
+were flat, literal pools (adding D-traffic) LOST 2ms. Together: the
+overworld's ~19ms pure-CPU frame is dominated by per-operation PSRAM
+LATENCY - mostly D-cache misses on guest EWRAM/VRAM/OAM (~400KB working
+set vs 16KB D-cache, ~265 cycles a miss) plus I-misses on block entry.
+No emitter restructuring changes that; DTCM/ITCM are closed (see TCM
+postmortem). Native 59.7 gfps for FireRed OVERWORLD is out of reach on
+this hardware by roughly 2x; the honest target is ~40 gfps overworld /
+~48 intro via trims:
+- blit u32 rewrite (3.3ms -> target ~1.7ms)
+- SOUND32K relanding with a PSG low-pass for the aliasing (-0.85ms)
+- audio-call batching, pacing polish
+Wario/Kirby (lighter engines) should be re-benched on the final stack -
+they may land near-native with frameskip.
 
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.
