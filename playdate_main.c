@@ -134,6 +134,7 @@ static void poll_crank_and_injections(void)
  * totals are what matters). */
 #define PERF_WINDOW 600
 static u32 perf_updates, perf_rendered, perf_skipped;
+static u32 perf_emu_r_ms, perf_emu_s_ms;
 static u32 perf_emu_ms, perf_blit_ms, perf_aud_ms, perf_window_start_ms;
 static u32 perf_emu_max_ms;
 
@@ -300,6 +301,7 @@ static void start_emulation(void)
   rebuild_menu(0);
   perf_updates = perf_rendered = perf_skipped = 0;
   perf_emu_ms = perf_blit_ms = perf_emu_max_ms = 0;
+  perf_emu_r_ms = perf_emu_s_ms = 0;
   perf_window_start_ms = pd->system->getCurrentTimeMilliseconds();
   pd->system->logToConsole("gpsp: running %s", selected_rom);
 
@@ -382,6 +384,16 @@ static void perf_flush(u32 now)
         (unsigned)((perf_aud_ms * 100 / perf_updates) % 100),
         (unsigned)(perf_rendered ? perf_blit_ms / perf_rendered : 0),
         (unsigned)(perf_rendered ? (perf_blit_ms * 100 / perf_rendered) % 100 : 0));
+  if (len > 0 && line[len - 1] == '\n')
+    len--;
+  len += snprintf(line + len, sizeof(line) - len,
+                  " | emuR=%u.%01ums emuS=%u.%01ums\n",
+                  (unsigned)(perf_rendered ? perf_emu_r_ms / perf_rendered : 0),
+                  (unsigned)(perf_rendered ?
+                             (perf_emu_r_ms * 10 / perf_rendered) % 10 : 0),
+                  (unsigned)(perf_skipped ? perf_emu_s_ms / perf_skipped : 0),
+                  (unsigned)(perf_skipped ?
+                             (perf_emu_s_ms * 10 / perf_skipped) % 10 : 0));
 #ifdef HAVE_DYNAREC
     /* Spike diagnostics: SMC-triggered RAM-cache flushes this window and
      * ROM translation-cache fill level. */
@@ -454,6 +466,7 @@ static void perf_flush(u32 now)
   }
   perf_updates = perf_rendered = perf_skipped = 0;
   perf_emu_ms = perf_blit_ms = perf_aud_ms = perf_emu_max_ms = 0;
+  perf_emu_r_ms = perf_emu_s_ms = 0;
   perf_window_start_ms = now;
 }
 
@@ -593,10 +606,14 @@ static int update(void *userdata)
   if (t1 - t0 > perf_emu_max_ms)
     perf_emu_max_ms = t1 - t0;
   if (skip)
+  {
     perf_skipped++;
+    perf_emu_s_ms += t1 - t0;
+  }
   else
   {
     perf_rendered++;
+    perf_emu_r_ms += t1 - t0;
     perf_blit_ms += t2 - t_aud;
   }
   if (perf_updates >= PERF_WINDOW)
