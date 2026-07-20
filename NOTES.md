@@ -197,10 +197,20 @@ Executed against the recorded plan; all numbers FireRed on device.
   (FireRed save screen). Dark-half square curve (the readability fix)
   kept.
 
-Next candidates, in order: PC-literal pools (executed-stream size; the
-overworld's 1.86MB working set vs 16KB I-cache raises size elasticity),
-bigger ROM translation cache (thrash prevention, cheap), audio-mix trims,
-blit u32 pass. All future A/Bs run against the OVERWORLD bench.
+Round-1 verdicts (2026-07-20, overworld bench):
+- ROM translation cache 2MB -> 3MB: flat on the bench as expected
+  (thrash insurance; overworld alone was at 93% of 2MB). Kept.
+- LITPOOL (PC-literal pools): pools engaged fully (romtx 1860 -> 1489KB,
+  -20%) but emuS got ~2ms WORSE (21.5-22.8 vs 19.5-20.6). Each block's
+  pool read adds D-side PSRAM traffic, and a D-miss costs more than the
+  fetches saved. Flag kept, OUT of the stack. Together with INLINEMEM
+  (flat) this establishes: the M7 here is PSRAM-LATENCY-bound, not
+  fetch-bandwidth-bound - never trade instruction bytes for data reads.
+
+Next candidates: emitted-code quality audit via the host translation
+dump (host insts per guest inst, find fat in hot overworld blocks),
+blit u32 pass (~3.3ms -> target half), SOUND32K revisit (0.85ms, needs
+the residual PSG aliasing addressed first).
 
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.
