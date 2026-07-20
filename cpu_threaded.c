@@ -2684,16 +2684,42 @@ u8 function_cc *block_lookup_address_dual(u32 pc)
 u32 pd_lookup_calls; /* runtime block lookups (indirect branches etc.) */
 #endif
 
+#ifdef PD_LOOKUP_CACHE
+/* Direct-mapped front cache for runtime block lookups: most indirect
+ * branches revisit a handful of targets (returns, jump tables), so a
+ * 256-entry probe skips the hash-chain walk through the translation
+ * cache (PSRAM). Cleared on every translation-cache flush. */
+typedef struct { u32 pc; u8 *ptr; } pd_bl_ent;
+static pd_bl_ent pd_bl_cache_arm[256];
+static pd_bl_ent pd_bl_cache_thumb[256];
+void pd_lookup_cache_clear(void)
+{
+  memset(pd_bl_cache_arm, 0, sizeof(pd_bl_cache_arm));
+  memset(pd_bl_cache_thumb, 0, sizeof(pd_bl_cache_thumb));
+}
+#endif
+
 u8 function_cc *block_lookup_address_arm(u32 pc)
 {
   unsigned i;
 #ifdef PD_SCHED_STATS
   pd_lookup_calls++;
 #endif
+#ifdef PD_LOOKUP_CACHE
+  pd_bl_ent *pd_e = &pd_bl_cache_arm[(pc >> 2) & 255];
+  if (pd_e->pc == pc && pd_e->ptr)
+    return pd_e->ptr;
+#endif
   for (i = 0; i < 4; i++) {
     u8 *ret = block_lookup_translate_arm(pc);
     if (ret) {
       translate_icache_sync();
+#ifdef PD_LOOKUP_CACHE
+      if (ret != (u8 *)(~0)) {
+        pd_e->pc = pc;
+        pd_e->ptr = ret;
+      }
+#endif
       return ret;
     }
   }
@@ -2709,10 +2735,21 @@ u8 function_cc *block_lookup_address_thumb(u32 pc)
 #ifdef PD_SCHED_STATS
   pd_lookup_calls++;
 #endif
+#ifdef PD_LOOKUP_CACHE
+  pd_bl_ent *pd_e = &pd_bl_cache_thumb[(pc >> 1) & 255];
+  if (pd_e->pc == pc && pd_e->ptr)
+    return pd_e->ptr;
+#endif
   for (i = 0; i < 4; i++) {
     u8 *ret = block_lookup_translate_thumb(pc);
     if (ret) {
       translate_icache_sync();
+#ifdef PD_LOOKUP_CACHE
+      if (ret != (u8 *)(~0)) {
+        pd_e->pc = pc;
+        pd_e->ptr = ret;
+      }
+#endif
       return ret;
     }
   }
@@ -3387,6 +3424,9 @@ void flush_translation_cache_ram(void)
 {
   /* Flushes RAM caches avoiding doing too much work (ie. wiping unused memory) */
   flush_ram_count++;
+#ifdef PD_LOOKUP_CACHE
+  pd_lookup_cache_clear();
+#endif
   /*printf("ram flush %d (pc %x), %x to %x, %x to %x\n",
    flush_ram_count, reg[REG_PC], iwram_code_min, iwram_code_max,
    ewram_code_min, ewram_code_max);*/
@@ -3428,6 +3468,9 @@ void flush_translation_cache_rom(void)
   rom_translation_ptr      = &rom_translation_cache[rom_cache_watermark];
 
   memset(rom_branch_hash, 0, sizeof(rom_branch_hash));
+#ifdef PD_LOOKUP_CACHE
+  pd_lookup_cache_clear();
+#endif
 }
 
 void init_dynarec_caches(void)

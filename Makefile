@@ -123,6 +123,12 @@ ifeq ($(SCHEDBATCH2),1)
 UDEFS += -DPD_SCHED_BATCH2
 endif
 
+# make LOOKUPCACHE=1: direct-mapped front cache for runtime block lookups
+# (A/B experiment; cleared on translation-cache flushes).
+ifeq ($(LOOKUPCACHE),1)
+UDEFS += -DPD_LOOKUP_CACHE
+endif
+
 # make SCHEDSTATS=1: count+sample update_gba scheduler round-trips
 # (perf.log gains a "gba" field). Tiny per-call overhead; A/B only.
 ifeq ($(SCHEDSTATS),1)

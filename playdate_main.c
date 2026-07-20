@@ -303,6 +303,24 @@ static void start_emulation(void)
   perf_window_start_ms = pd->system->getCurrentTimeMilliseconds();
   pd->system->logToConsole("gpsp: running %s", selected_rom);
 
+#if defined(PD_SCHED_STATS) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
+  /* Warm-lookup microbenchmark: how much does one runtime block lookup
+   * cost? (The BIOS SWI block at 0x8 is always translated by now.) */
+  {
+    extern u8 function_cc *block_lookup_address_arm(u32 pc);
+    volatile u8 *pd_bp;
+    int pd_i;
+    pd->system->resetElapsedTime();
+    float pd_t0 = pd->system->getElapsedTime();
+    for (pd_i = 0; pd_i < 10000; pd_i++)
+      pd_bp = block_lookup_address_arm(0x8);
+    float pd_t1 = pd->system->getElapsedTime();
+    pd->system->logToConsole("gpsp: lookup ubench %.2fus/call",
+                             (double)((pd_t1 - pd_t0) * 100.0f));
+    (void)pd_bp;
+  }
+#endif
+
   /* Bench builds (make BENCH=1): scripted input + frame-time report,
    * written to pd-playbench-report.txt in the Data folder when the script
    * finishes. A /Shared script overrides the bundled one so benchmarks can
