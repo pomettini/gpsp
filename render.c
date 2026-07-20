@@ -18,7 +18,9 @@ static PlaydateAPI *pd;
 
 /* RGB565 -> 0..255 luminance, one byte per possible pixel value. 64KB;
  * the working set per frame is only the colors actually on screen. */
-static uint8_t lum_lut[65536];
+static uint8_t lum_lut[32768];   /* 555-indexed: g LSB dropped (1/64 of
+                                  * luminance) to halve D-cache footprint */
+#define LUM_IDX(c) ((((c) >> 1) & 0x7FE0) | ((c) & 0x1F))
 
 /* Previous frame's packed rows, for changed-row detection. */
 static uint8_t prev_rows[GBA_H][GBA_ROW_BYTES];
@@ -38,13 +40,13 @@ void pd_render_init(PlaydateAPI *playdate)
   pd = playdate;
   pd->display->setRefreshRate(50.0f);
 
-  for (c = 0; c < 65536; c++)
+  for (c = 0; c < 32768; c++)
   {
-    unsigned r = (c >> 11) & 0x1F;
-    unsigned g = (c >> 5) & 0x3F;
+    unsigned r = (c >> 10) & 0x1F;
+    unsigned g = (c >> 5) & 0x1F;
     unsigned b = c & 0x1F;
-    /* lum = 0.30r + 0.59g + 0.11b on 5/6/5-bit channels, 0..255 out. */
-    unsigned lum = (r * 79 + g * 77 + b * 29) >> 5;
+    /* lum = 0.30r + 0.59g + 0.11b on 5-bit channels, 0..255 out. */
+    unsigned lum = (r * 79 + g * 154 + b * 29) >> 5;
     if (lum > 255)
       lum = 255;
     /* Contrast S-curve: the linear LUT dithers text and mid-dark
@@ -60,9 +62,8 @@ void pd_render_init(PlaydateAPI *playdate)
       lum = (lum * lum) >> 7;
     else if (lum > 193 && lum < 241)
     {
-      unsigned g5 = g >> 1;
-      unsigned mx = r > g5 ? r : g5;
-      unsigned mn = r < g5 ? r : g5;
+      unsigned mx = r > g ? r : g;
+      unsigned mn = r < g ? r : g;
       if (b > mx) mx = b;
       if (b < mn) mn = b;
       if (mx - mn <= 2)
@@ -88,17 +89,34 @@ void pd_render_frame(const uint16_t *src)
 
     for (x8 = 0; x8 < GBA_ROW_BYTES; x8++)
     {
-      const uint16_t *p = row + x8 * 8;
+      /* white = bit set; 8px -> 1 byte. u32 pair loads; equal pixels in
+       * a pair (flat tiles) reuse one LUT lookup - the 555 LUT's random
+       * accesses are the blit's D-cache bottleneck. */
+      const uint32_t *p32 = (const uint32_t *)(row + x8 * 8);
       uint8_t b = 0;
-      /* white = bit set; unrolled 8px -> 1 byte */
-      b |= (lum_lut[p[0]] > bay[0]) ? 0x80 : 0;
-      b |= (lum_lut[p[1]] > bay[1]) ? 0x40 : 0;
-      b |= (lum_lut[p[2]] > bay[2]) ? 0x20 : 0;
-      b |= (lum_lut[p[3]] > bay[3]) ? 0x10 : 0;
-      b |= (lum_lut[p[4]] > bay[0]) ? 0x08 : 0;
-      b |= (lum_lut[p[5]] > bay[1]) ? 0x04 : 0;
-      b |= (lum_lut[p[6]] > bay[2]) ? 0x02 : 0;
-      b |= (lum_lut[p[7]] > bay[3]) ? 0x01 : 0;
+      uint32_t w;
+      uint8_t la, lb;
+
+      w = p32[0];
+      la = lum_lut[LUM_IDX(w & 0xFFFF)];
+      lb = ((w >> 16) == (w & 0xFFFF)) ? la : lum_lut[LUM_IDX(w >> 16)];
+      b |= (la > bay[0]) ? 0x80 : 0;
+      b |= (lb > bay[1]) ? 0x40 : 0;
+      w = p32[1];
+      la = lum_lut[LUM_IDX(w & 0xFFFF)];
+      lb = ((w >> 16) == (w & 0xFFFF)) ? la : lum_lut[LUM_IDX(w >> 16)];
+      b |= (la > bay[2]) ? 0x20 : 0;
+      b |= (lb > bay[3]) ? 0x10 : 0;
+      w = p32[2];
+      la = lum_lut[LUM_IDX(w & 0xFFFF)];
+      lb = ((w >> 16) == (w & 0xFFFF)) ? la : lum_lut[LUM_IDX(w >> 16)];
+      b |= (la > bay[0]) ? 0x08 : 0;
+      b |= (lb > bay[1]) ? 0x04 : 0;
+      w = p32[3];
+      la = lum_lut[LUM_IDX(w & 0xFFFF)];
+      lb = ((w >> 16) == (w & 0xFFFF)) ? la : lum_lut[LUM_IDX(w >> 16)];
+      b |= (la > bay[2]) ? 0x02 : 0;
+      b |= (lb > bay[3]) ? 0x01 : 0;
       packed[x8] = b;
     }
 
