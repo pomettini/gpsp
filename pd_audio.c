@@ -76,6 +76,23 @@ void pd_audio_frame(void)
   /* Mix the guest audio for the elapsed frame, then drain the core ring. */
   render_gbc_sound();
   frames = sound_read_samples(stage, STAGE_FRAMES);
+#if GBA_SOUND_FREQUENCY == (32 * 1024)
+  /* One-pole low-pass (~7kHz at 32.768k, alpha=3/4): the PSG squares
+   * alias when synthesized at 32k; folding can't be undone after the
+   * fact, but taming the top end removes the piercing edge (this
+   * speaker rolls off up there anyway). State carries across batches. */
+  {
+    static s32 lp_l, lp_r;
+    u32 lp_i;
+    for (lp_i = 0; lp_i < frames; lp_i++)
+    {
+      lp_l += (((s32)stage[lp_i * 2] - lp_l) * 3) >> 2;
+      lp_r += (((s32)stage[lp_i * 2 + 1] - lp_r) * 3) >> 2;
+      stage[lp_i * 2] = (s16)lp_l;
+      stage[lp_i * 2 + 1] = (s16)lp_r;
+    }
+  }
+#endif
   if (frames == 0)
     return;
 
