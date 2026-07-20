@@ -51,11 +51,23 @@ void pd_render_init(PlaydateAPI *playdate)
      * backgrounds into competing checkers (unreadable dialogue). Squaring
      * toward the extremes separates them onto opposite dither halves. */
     /* Dark half: square curve pushes text into solid black (verified
-     * readable). Light half stays LINEAR: compressing highlights to
-     * white made light-gray text vanish on white windows (FireRed
-     * save screen), so light shades keep their dither texture. */
+     * readable). NEUTRAL light grays drop to a dark dither level:
+     * FireRed draws save-screen text at lum ~210 near-gray on white
+     * ~253, and no Bayer pattern can separate those. The remap must
+     * skip colorful brights (pale overworld tiles live at lum 197-224
+     * but green-tinted), so it keys on channel spread staying small. */
     if (lum < 128)
       lum = (lum * lum) >> 7;
+    else if (lum > 193 && lum < 241)
+    {
+      unsigned g5 = g >> 1;
+      unsigned mx = r > g5 ? r : g5;
+      unsigned mn = r < g5 ? r : g5;
+      if (b > mx) mx = b;
+      if (b < mn) mn = b;
+      if (mx - mn <= 2)
+        lum = 96;
+    }
     lum_lut[c] = (uint8_t)lum;
   }
 

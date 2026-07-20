@@ -628,6 +628,25 @@ static int update(void *userdata)
   pd_playbench_update();
   pd_playbench_report_frame((float)last_update_ms, skip ? 1 : 0);
 
+#ifdef PD_FRAME_DUMP
+  /* Diagnostic: dump the raw RGB565 guest frame every ~10s so visual
+   * bugs can be inspected off-device (Data/frame.bin, 240x160x2). */
+  {
+    static u32 pd_fd_count;
+    if (++pd_fd_count >= 300)
+    {
+      SDFile *fdf = pd->file->open("frame.bin", kFileWrite);
+      pd_fd_count = 0;
+      if (fdf)
+      {
+        pd->file->write(fdf, gba_screen_pixels, 240 * 160 * 2);
+        pd->file->close(fdf);
+        pd->system->logToConsole("gpsp: dumped frame.bin");
+      }
+    }
+  }
+#endif
+
   perf_updates++;
   perf_emu_ms += t1 - t0;
   perf_aud_ms += t_aud - t1;

@@ -129,6 +129,12 @@ ifeq ($(LOOKUPCACHE),1)
 UDEFS += -DPD_LOOKUP_CACHE
 endif
 
+# make FRAMEDUMP=1: write the raw RGB565 guest frame to Data/frame.bin
+# every ~10s (visual-bug diagnosis; use without BENCH).
+ifeq ($(FRAMEDUMP),1)
+UDEFS += -DPD_FRAME_DUMP
+endif
+
 # make SCHEDSTATS=1: count+sample update_gba scheduler round-trips
 # (perf.log gains a "gba" field). Tiny per-call overhead; A/B only.
 ifeq ($(SCHEDSTATS),1)
