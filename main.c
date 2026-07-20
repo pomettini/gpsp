@@ -275,6 +275,11 @@ pd_line_advance:
             u32 pd_m = dispstat >> 8;
             if ((dispstat & 0x20) && pd_m > vcount && pd_m < pd_tgt)
               pd_tgt = pd_m;
+            /* Cap the jump so batched sound-timer fires stay small
+             * bursts (unbounded jumps fired ~100 periods at once and
+             * produced audible ticking). */
+            if (pd_tgt > vcount + 24)
+              pd_tgt = vcount + 24;
             if (pd_tgt > vcount)
             {
 #ifdef PD_SCHED_STATS
