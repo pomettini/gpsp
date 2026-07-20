@@ -1250,6 +1250,39 @@ static void trace_instruction(u32 pc, u32 mode)
 #define generate_load_call_s16(pcval)        generate_load_call_mbyte(7, 1, pcval)
 #define generate_load_call_u32(pcval)        generate_load_call_mbyte(8, 2, pcval)
 
+#ifdef PD_COMPACT_MEM
+/* Compact memory calls: the region math and handler fetch above cost
+ * 14-18 bytes at EVERY site (~18.5k sites = the biggest slice of the
+ * emitted stream, see NOTES.md audit). Shrink each site to
+ * movw/movt(pc)+BL into a shared stub dispatcher that does the same
+ * math once, hot in I-cache. Same ABI: handler returns to the site. */
+void t2_mem_dispatch_0(void); void t2_mem_dispatch_1(void);
+void t2_mem_dispatch_2(void); void t2_mem_dispatch_3(void);
+void t2_mem_dispatch_4(void); void t2_mem_dispatch_5(void);
+void t2_mem_dispatch_6(void); void t2_mem_dispatch_7(void);
+void t2_mem_dispatch_8(void);
+
+static void (*const t2_mem_dispatch_ptrs[9])(void) = {
+  t2_mem_dispatch_0, t2_mem_dispatch_1, t2_mem_dispatch_2,
+  t2_mem_dispatch_3, t2_mem_dispatch_4, t2_mem_dispatch_5,
+  t2_mem_dispatch_6, t2_mem_dispatch_7, t2_mem_dispatch_8,
+};
+
+#define generate_mem_call_compact(tblnum, pcval)                              \
+  t2_load_imm32(reg_gpc, pcval);                                              \
+  t2_bl(translation_ptr, t2_mem_dispatch_ptrs[tblnum])                        \
+
+#undef generate_store_call
+#define generate_store_call(tblnum, pcval)                                    \
+  generate_mem_call_compact(tblnum, pcval)
+#undef generate_load_call_byte
+#define generate_load_call_byte(tblnum, pcval)                                \
+  generate_mem_call_compact(tblnum, pcval)
+#undef generate_load_call_mbyte
+#define generate_load_call_mbyte(tblnum, abits, pcval)                        \
+  generate_mem_call_compact(tblnum, pcval)
+#endif /* PD_COMPACT_MEM */
+
 #ifdef PD_INLINE_MEM
 /* Inline load fastpath: memory_map_read covers BIOS/EWRAM/IWRAM/IO/VRAM
  * (with mirrors) and resident ROM pages, NULL elsewhere - so a page lookup

@@ -52,6 +52,11 @@ void t2_hle_div(void) {}
 void t2_hle_divarm(void) {}
 void t2_hle_bios_arm(void) {}
 void t2_hle_bios_thumb(void) {}
+void t2_mem_dispatch_0(void) {} void t2_mem_dispatch_1(void) {}
+void t2_mem_dispatch_2(void) {} void t2_mem_dispatch_3(void) {}
+void t2_mem_dispatch_4(void) {} void t2_mem_dispatch_5(void) {}
+void t2_mem_dispatch_6(void) {} void t2_mem_dispatch_7(void) {}
+void t2_mem_dispatch_8(void) {}
 
 u32 execute_arm_translate_internal(u32 cycles, void *regptr)
 {

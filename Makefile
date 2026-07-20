@@ -148,6 +148,13 @@ ifeq ($(DUMPJIT),1)
 UDEFS += -DPD_JIT_DUMP_DEVICE
 endif
 
+# make COMPACTMEM=1: memory ops call shared stub dispatchers instead of
+# inlining region dispatch at every site (see NOTES.md audit; use
+# WITHOUT INLINEMEM for the pure variant).
+ifeq ($(COMPACTMEM),1)
+UDEFS += -DPD_COMPACT_MEM
+endif
+
 # make SCHEDSTATS=1: count+sample update_gba scheduler round-trips
 # (perf.log gains a "gba" field). Tiny per-call overhead; A/B only.
 ifeq ($(SCHEDSTATS),1)

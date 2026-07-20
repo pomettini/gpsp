@@ -634,6 +634,26 @@ defsymbl(t2_hle_divarm)
   mov r2, reg_x0
   mov reg_x0, reg_x1
   mov reg_x1, r2
+@ Compact memory-call dispatchers (PD_COMPACT_MEM): emitted call sites
+@ shrink to movw/movt(pc)+BL; the region math and handler-table fetch that
+@ every site used to inline live here once, hot in I-cache. Input: r0 =
+@ address (r1 = store value for stores), r10 = guest PC, lr = return to
+@ the site. Only r2 is clobbered before the handler takes over; the
+@ handler returns straight to the site via lr, exactly as when sites
+@ BLX'd it directly. Table index = usat4(addr ror abits, asr 24-abits).
+
+#define mem_dispatch_builder(tblnum, abits)                                  ;defsymbl(t2_mem_dispatch_##tblnum)                                           ;  .if abits                                                                  ;  ror r2, r0, #(abits)                                                       ;  usat r2, #4, r2, asr #(24-(abits))                                         ;  .else                                                                      ;  usat r2, #4, r0, asr #24                                                   ;  .endif                                                                     ;  addw r2, r2, #((0x118 + 68*(tblnum) + 4) >> 2)                             ;  ldr r2, [reg_base, r2, lsl #2]                                             ;  bx r2                                                                      ;.size t2_mem_dispatch_##tblnum, .-t2_mem_dispatch_##tblnum
+
+mem_dispatch_builder(0, 0)   @ store u8
+mem_dispatch_builder(1, 0)   @ store u16
+mem_dispatch_builder(2, 0)   @ store u32
+mem_dispatch_builder(3, 0)   @ store u32 safe
+mem_dispatch_builder(4, 0)   @ load u8
+mem_dispatch_builder(5, 0)   @ load s8
+mem_dispatch_builder(6, 1)   @ load u16
+mem_dispatch_builder(7, 1)   @ load s16
+mem_dispatch_builder(8, 2)   @ load u32
+
 defsymbl(t2_hle_div)
   save_flags()
   sdiv r0, reg_x0, reg_x1                 @ r0 = quotient
