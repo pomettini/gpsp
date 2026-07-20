@@ -135,6 +135,7 @@ static void poll_crank_and_injections(void)
 #define PERF_WINDOW 600
 static u32 perf_updates, perf_rendered, perf_skipped;
 static u32 perf_emu_r_ms, perf_emu_s_ms;
+static u32 perf_guest_frames, perf_last_frame_counter;
 static u32 perf_emu_ms, perf_blit_ms, perf_aud_ms, perf_window_start_ms;
 static u32 perf_emu_max_ms;
 
@@ -302,6 +303,7 @@ static void start_emulation(void)
   perf_updates = perf_rendered = perf_skipped = 0;
   perf_emu_ms = perf_blit_ms = perf_emu_max_ms = 0;
   perf_emu_r_ms = perf_emu_s_ms = 0;
+  perf_last_frame_counter = frame_counter;
   perf_window_start_ms = pd->system->getCurrentTimeMilliseconds();
   pd->system->logToConsole("gpsp: running %s", selected_rom);
 
@@ -366,6 +368,7 @@ static void return_to_picker(void)
 
 static void perf_flush(u32 now)
 {
+  perf_guest_frames = frame_counter - perf_last_frame_counter;
   SDFile *f = pd->file->open("perf.log", kFileAppend);
   if (f)
   {
@@ -387,13 +390,16 @@ static void perf_flush(u32 now)
   if (len > 0 && line[len - 1] == '\n')
     len--;
   len += snprintf(line + len, sizeof(line) - len,
-                  " | emuR=%u.%01ums emuS=%u.%01ums\n",
+                  " | emuR=%u.%01ums emuS=%u.%01ums gfps=%u.%01u\n",
                   (unsigned)(perf_rendered ? perf_emu_r_ms / perf_rendered : 0),
                   (unsigned)(perf_rendered ?
                              (perf_emu_r_ms * 10 / perf_rendered) % 10 : 0),
                   (unsigned)(perf_skipped ? perf_emu_s_ms / perf_skipped : 0),
                   (unsigned)(perf_skipped ?
-                             (perf_emu_s_ms * 10 / perf_skipped) % 10 : 0));
+                             (perf_emu_s_ms * 10 / perf_skipped) % 10 : 0),
+                  (unsigned)(wall ? (perf_guest_frames * 1000) / wall : 0),
+                  (unsigned)(wall ?
+                             ((perf_guest_frames * 10000) / wall) % 10 : 0));
 #ifdef HAVE_DYNAREC
     /* Spike diagnostics: SMC-triggered RAM-cache flushes this window and
      * ROM translation-cache fill level. */
@@ -467,6 +473,7 @@ static void perf_flush(u32 now)
   perf_updates = perf_rendered = perf_skipped = 0;
   perf_emu_ms = perf_blit_ms = perf_aud_ms = perf_emu_max_ms = 0;
   perf_emu_r_ms = perf_emu_s_ms = 0;
+  perf_last_frame_counter = frame_counter;
   perf_window_start_ms = now;
 }
 
