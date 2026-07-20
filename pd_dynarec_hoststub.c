@@ -50,6 +50,8 @@ void execute_swi_arm(void) {}
 void execute_swi_thumb(void) {}
 void t2_hle_div(void) {}
 void t2_hle_divarm(void) {}
+void t2_hle_bios_arm(void) {}
+void t2_hle_bios_thumb(void) {}
 
 u32 execute_arm_translate_internal(u32 cycles, void *regptr)
 {

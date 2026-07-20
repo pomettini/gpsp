@@ -678,7 +678,10 @@ static int update(void *userdata)
     static int jit_dumped;
     static int jit_frames;
 
-    if (!jit_dumped && ++jit_frames == 300)
+#ifndef PD_JITDUMP_FRAME
+#define PD_JITDUMP_FRAME 300
+#endif
+    if (!jit_dumped && ++jit_frames == PD_JITDUMP_FRAME)
     {
       u8 *entry = block_lookup_address_arm(0x08000000);
       u8 *cur;
@@ -713,6 +716,49 @@ static int update(void *userdata)
       }
       pd->system->logToConsole("gpsp: jit dump written");
       jit_dumped = 1;
+    }
+  }
+#endif
+
+#if defined(PD_JIT_DUMP_DEVICE) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
+  /* Emitted-code corpus dump: near the end of a bench run, write the ROM
+   * translation cache, its branch hash table (block enumeration) and the
+   * RAM cache for offline statistical analysis of emitter output. */
+  {
+    extern u8 rom_translation_cache[];
+    extern u8 *rom_translation_ptr;
+    extern u8 ram_translation_cache[];
+    extern u8 *ram_translation_ptr;
+    extern u32 rom_branch_hash[];
+    static int jd_done;
+    static u32 jd_frames;
+    if (!jd_done && ++jd_frames == 4400)
+    {
+      SDFile *f;
+      f = pd->file->open("jitrom.bin", kFileWrite);
+      if (f)
+      {
+        pd->file->write(f, rom_translation_cache,
+                        (unsigned int)(rom_translation_ptr -
+                                       rom_translation_cache));
+        pd->file->close(f);
+      }
+      f = pd->file->open("jithash.bin", kFileWrite);
+      if (f)
+      {
+        pd->file->write(f, rom_branch_hash, (1 << 16) * 4);
+        pd->file->close(f);
+      }
+      f = pd->file->open("jitram.bin", kFileWrite);
+      if (f)
+      {
+        pd->file->write(f, ram_translation_cache,
+                        (unsigned int)(ram_translation_ptr -
+                                       ram_translation_cache));
+        pd->file->close(f);
+      }
+      pd->system->logToConsole("gpsp: jit corpus dumped");
+      jd_done = 1;
     }
   }
 #endif

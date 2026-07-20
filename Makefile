@@ -54,6 +54,7 @@ UASRC =
 # PD_SHELL_AUDIO: the shell owns the per-frame render_gbc_sound() call
 # (currently skipped entirely — samples are discarded until Phase 3 audio).
 UDEFS = -DROM_BUFFER_SIZE=8 -DPD_SHELL_AUDIO
+UDEFS += $(UDEFS_EXTRA)
 UADEFS =
 ULIBDIR =
 ULIBS =
@@ -139,6 +140,12 @@ endif
 # literal instead of 8-byte MOVW/MOVT; shrinks the executed stream).
 ifeq ($(LITPOOL),1)
 UDEFS += -DPD_LIT_POOL
+endif
+
+# make DUMPJIT=1: on device, dump the translation caches + branch hash
+# near the end of a bench run (Data/jitrom.bin etc.) for offline analysis.
+ifeq ($(DUMPJIT),1)
+UDEFS += -DPD_JIT_DUMP_DEVICE
 endif
 
 # make SCHEDSTATS=1: count+sample update_gba scheduler round-trips
