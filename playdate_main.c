@@ -190,6 +190,27 @@ static void write_save_ram(void)
   if (!rom_loaded)
     return;
 
+  /* Never clobber a real save file with erased flash: a game-issued
+   * chip erase (or a save-detect misfire) leaves the buffer all-0xFF,
+   * and persisting that once destroyed a real save (2026-07-20). */
+  {
+    u32 i;
+    for (i = 0; i < sizeof(gamepak_backup); i++)
+      if (gamepak_backup[i] != 0xFF)
+        break;
+    if (i == sizeof(gamepak_backup))
+    {
+      SDFile *old_f = pd->file->open(save_path, kFileReadData);
+      if (old_f)
+      {
+        pd->file->close(old_f);
+        pd->system->logToConsole("gpsp: NOT writing %s (backup is erased)",
+                                 save_path);
+        return;
+      }
+    }
+  }
+
   f = pd->file->open(save_path, kFileWrite);
   if (!f)
   {

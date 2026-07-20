@@ -13,6 +13,8 @@ wait 120
 hold A 6
 wait 120
 hold A 6
+wait 120
+hold A 6
 wait 240
 hold LEFT 45
 wait 5
