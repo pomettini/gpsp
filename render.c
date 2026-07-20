@@ -50,10 +50,12 @@ void pd_render_init(PlaydateAPI *playdate)
     /* Contrast S-curve: the linear LUT dithers text and mid-dark
      * backgrounds into competing checkers (unreadable dialogue). Squaring
      * toward the extremes separates them onto opposite dither halves. */
+    /* Dark half: square curve pushes text into solid black (verified
+     * readable). Light half stays LINEAR: compressing highlights to
+     * white made light-gray text vanish on white windows (FireRed
+     * save screen), so light shades keep their dither texture. */
     if (lum < 128)
       lum = (lum * lum) >> 7;
-    else
-      lum = 255 - (((255 - lum) * (255 - lum)) >> 7);
     lum_lut[c] = (uint8_t)lum;
   }
 

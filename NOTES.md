@@ -153,6 +153,55 @@ already contains PPU render. Corrected budget of the 22.3ms emu:
   - emitted-code execution + 133 C block-lookups + handlers: ~12ms
 Native target 16.7ms; frame avg 26.5 (emu 22.3 + aud 1.8 + blit 2.9).
 
+## Native-speed campaign, round 1 (2026-07-20)
+
+Executed against the recorded plan; all numbers FireRed on device.
+
+- **Scheduler round 3 (SCHEDBATCH2, kept)**: scanline fast-forward — jump
+  runs of idle lines in one event, stopping at the VCOUNT match line
+  (FireRed arms VCOUNT IRQ @150 permanently; hblank IRQ/HDMA unarmed),
+  vblank start (160) and frame wrap (228). Vdraw coalesces on skipped
+  frames only; vblank on every frame. Jumps capped at 24 lines: unbounded
+  jumps batched ~100 sound-timer periods per event and produced audible
+  ticking (user-verified gone at cap 24, cost ~0.7ms vs uncapped).
+  Intro bench 26.12 -> 24.77ms (est 40.4 fps), gba 227 -> 88/upd.
+- **Lookup front cache (LOOKUPCACHE, dead end)**: warm block lookup
+  measured at 0.21-0.39us/call (boot ubench, logged at startup); 150-340
+  lookups/frame is at most ~0.3ms. Front cache flat (24.78 vs 24.77).
+  Flag kept, out of the shipping stack. Lookups are NOT a bottleneck.
+- **perf.log now splits emuR/emuS (rendered/skipped emu ms) and logs
+  gfps** (true emulated guest-frame rate via frame_counter; native=59.73).
+  Caveat: catch-up updates run 2 guest frames and charge both to that
+  update's bucket, so emuR overstates rendered-frame cost when pacing.
+- **Overworld reality check**: intro bench is NOT representative.
+  Overworld (walking, scripted bench below): gfps 36-37 vs intro 40-44,
+  emuS ~20ms vs ~13ms, lookups ~344/upd, romtx grows to 1.86MB (near the
+  2MB SMALL_TRANSLATION_CACHE limit -> flush storms loom in later areas).
+  Pure CPU cost per overworld frame ~20ms is the wall between here and
+  native; PPU render is only ~2-2.5ms (emuR-emuS after double-frame
+  correction, consistent with the old PPUOFF measurement).
+- **Overworld bench**: Source/bench_firered_overworld.txt (also pushed to
+  /Shared/Emulation/gba/bench_script.txt override) — waits out intro,
+  continues the save (3x A), paces LEFT/RIGHT/DOWN ~100s. UP token is the
+  Start bridge, so the walk never uses UP; no A during walking (dialog
+  risk), B taps dismiss strays. Baseline: est 36.71 fps, avg 27.24ms.
+- **SAVE-WIPE POSTMORTEM**: user's FireRed save was destroyed at 01:17 —
+  the game issued a flash chip erase (gba_memory.c handles cmd 0x10 with
+  a full-buffer 0xFF memset) during the bench marathon and the shell
+  persisted the erased image on exit. Restored from the user's manual
+  test.sav.bak (valid, 28 section magics); local backup kept at
+  ~/gpsp-saves/firered-20260714.sav. Shell now REFUSES to overwrite an
+  existing save file when the backup buffer is all-0xFF (logs instead).
+- **Blit LUT**: light half of the contrast curve reverted to linear —
+  highlight compression made light-gray text invisible on white windows
+  (FireRed save screen). Dark-half square curve (the readability fix)
+  kept.
+
+Next candidates, in order: PC-literal pools (executed-stream size; the
+overworld's 1.86MB working set vs 16KB I-cache raises size elasticity),
+bigger ROM translation cache (thrash prevention, cheap), audio-mix trims,
+blit u32 pass. All future A/Bs run against the OVERWORLD bench.
+
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.
    Push further - lazy VCOUNT so vdraw scanlines coalesce when no per-line
