@@ -1,0 +1,156 @@
+# FireRed overworld walker: waits out the intro, continues the save,
+# then paces left/right/down for ~100s. UP = GBA Start (shell bridge),
+# so the walk uses LEFT/RIGHT/DOWN only; B dismisses stray dialogs.
+wait 400
+hold UP 6
+wait 120
+hold UP 6
+wait 120
+hold UP 6
+wait 120
+hold UP 6
+wait 120
+hold A 6
+wait 120
+hold A 6
+wait 240
+hold LEFT 45
+wait 5
+hold RIGHT 45
+wait 5
+hold LEFT 45
+wait 5
+hold RIGHT 45
+wait 5
+hold LEFT 45
+wait 5
+hold RIGHT 45
+wait 5
+hold LEFT 45
+wait 5
+hold RIGHT 45
+wait 5
+hold DOWN 30
+wait 5
+hold B 4
+wait 10
+hold LEFT 45
+wait 5
+hold RIGHT 45
+wait 5
+hold LEFT 45
+wait 5
+hold RIGHT 45
+wait 5
+hold LEFT 45
+wait 5
+hold RIGHT 45
+wait 5
+hold LEFT 45
+wait 5
+hold RIGHT 45
+wait 5
+hold DOWN 30
+wait 5
+hold B 4
+wait 10
+hold LEFT 45
+wait 5
+hold RIGHT 45
+wait 5
+hold LEFT 45
+wait 5
+hold RIGHT 45
+wait 5
+hold LEFT 45
+wait 5
+hold RIGHT 45
+wait 5
+hold LEFT 45
+wait 5
+hold RIGHT 45
+wait 5
+hold DOWN 30
+wait 5
+hold B 4
+wait 10
+hold LEFT 45
+wait 5
+hold RIGHT 45
+wait 5
+hold LEFT 45
+wait 5
+hold RIGHT 45
+wait 5
+hold LEFT 45
+wait 5
+hold RIGHT 45
+wait 5
+hold LEFT 45
+wait 5
+hold RIGHT 45
+wait 5
+hold DOWN 30
+wait 5
+hold B 4
+wait 10
+hold LEFT 45
+wait 5
+hold RIGHT 45
+wait 5
+hold LEFT 45
+wait 5
+hold RIGHT 45
+wait 5
+hold LEFT 45
+wait 5
+hold RIGHT 45
+wait 5
+hold LEFT 45
+wait 5
+hold RIGHT 45
+wait 5
+hold DOWN 30
+wait 5
+hold B 4
+wait 10
+hold LEFT 45
+wait 5
+hold RIGHT 45
+wait 5
+hold LEFT 45
+wait 5
+hold RIGHT 45
+wait 5
+hold LEFT 45
+wait 5
+hold RIGHT 45
+wait 5
+hold LEFT 45
+wait 5
+hold RIGHT 45
+wait 5
+hold DOWN 30
+wait 5
+hold B 4
+wait 10
+hold LEFT 45
+wait 5
+hold RIGHT 45
+wait 5
+hold LEFT 45
+wait 5
+hold RIGHT 45
+wait 5
+hold LEFT 45
+wait 5
+hold RIGHT 45
+wait 5
+hold LEFT 45
+wait 5
+hold RIGHT 45
+wait 5
+hold DOWN 30
+wait 5
+hold B 4
+wait 10
