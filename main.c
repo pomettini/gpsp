@@ -141,6 +141,7 @@ void init_main(void)
 u32 pd_updgba_calls;
 u32 pd_updgba_sampled_us;
 u32 pd_updgba_samples;
+u32 pd_ff_lines;
 float (*pd_elapsed_cb)(void);
 #endif
 
@@ -246,19 +247,43 @@ pd_line_advance:
         dispstat &= ~0x02;
         vcount++;
 #ifdef PD_SCHED_BATCH2
-        /* Vdraw fast-forward: on a SKIPPED frame with nothing per-line
-         * armed (no hblank/vcount IRQ, no hblank flag reader can matter,
-         * no HDMA), jump straight to the last vdraw line in one event.
-         * VCOUNT is stale during the jump - the gated accuracy trade. */
-        if (skip_next_frame && vcount < 159 && !(dispstat & 0x30) &&
+        /* Scanline fast-forward: jump over runs of uninteresting lines in
+         * one event, stopping where per-line work exists - the VCOUNT
+         * match line (flag+IRQ fire normally), vblank start (160) and the
+         * frame wrap (228). Vdraw lines coalesce only on skipped frames
+         * (update_scanline must run per line otherwise); vblank lines
+         * coalesce on every frame. Needs hblank IRQ and hblank DMA
+         * unarmed. VCOUNT is stale inside a jump - the gated accuracy
+         * trade (IRQ-driven engines are unaffected; tight VCOUNT poll
+         * loops see fewer distinct values). */
+        if (!(dispstat & 0x10) &&
             dma[0].start_type != DMA_START_HBLANK &&
             dma[1].start_type != DMA_START_HBLANK &&
             dma[2].start_type != DMA_START_HBLANK &&
             dma[3].start_type != DMA_START_HBLANK)
         {
-          u32 pd_ff = 159 - vcount;
-          video_count += pd_ff * 1232;
-          vcount += pd_ff;
+          u32 pd_tgt = 0;
+          if (vcount < 160)
+          {
+            if (skip_next_frame)
+              pd_tgt = 160;
+          }
+          else if (vcount > 160 && vcount < 228)
+            pd_tgt = 228;
+          if (pd_tgt)
+          {
+            u32 pd_m = dispstat >> 8;
+            if ((dispstat & 0x20) && pd_m > vcount && pd_m < pd_tgt)
+              pd_tgt = pd_m;
+            if (pd_tgt > vcount)
+            {
+#ifdef PD_SCHED_STATS
+              pd_ff_lines += pd_tgt - vcount;
+#endif
+              video_count += (pd_tgt - vcount) * 1232;
+              vcount = pd_tgt;
+            }
+          }
         }
 #endif
 #else

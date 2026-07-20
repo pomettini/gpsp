@@ -388,6 +388,8 @@ static void perf_flush(u32 now)
        * per-call cost, extrapolated to ms per frame. */
       extern u32 pd_updgba_calls, pd_updgba_sampled_us, pd_updgba_samples;
       extern u32 pd_lookup_calls;
+      extern u32 pd_ff_lines;
+      static u32 last_ff;
       static u32 last_lookups;
       static u32 last_calls, last_us, last_samples;
       u32 dcalls = pd_updgba_calls - last_calls;
@@ -409,6 +411,13 @@ static void perf_flush(u32 now)
                       (unsigned)((pd_lookup_calls - last_lookups) /
                                  (perf_updates ? perf_updates : 1)));
       last_lookups = pd_lookup_calls;
+      if (len > 0 && line[len - 1] == '\n')
+        len--;
+      len += snprintf(line + len, sizeof(line) - len,
+                      " ff=%u/upd\n",
+                      (unsigned)((pd_ff_lines - last_ff) /
+                                 (perf_updates ? perf_updates : 1)));
+      last_ff = pd_ff_lines;
     }
 #endif
 #if defined(PD_TCM_POOL) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
