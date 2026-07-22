@@ -751,13 +751,12 @@ defsymbl(t2_hle_m4a_inner)
   restore_flags()
   cmp reg_cycles, #0
   blt 1f
-  mov r2, r0
+  mov r2, lr
   mov reg_gpc, r0
-  push {r2, lr}
   ldr r1, =arm_update_gba_arm
   blx r1
-  pop {r2, lr}
-  mov r0, r2
+  mov r0, reg_gpc
+  mov lr, r2
 1:
   bx lr
 .size t2_hle_m4a_inner, .-t2_hle_m4a_inner

@@ -326,8 +326,11 @@ they may land near-native with frameskip.
   the RevB A/B and listening test pass.
 - The first device build engaged the signature guard, then watchdog-stalled
   on its first scheduler crossing: the bridge's BLX had replaced the emitted
-  block's incoming LR. Preserve `{r2,lr}` across that call (also retaining
-  AAPCS stack alignment); the mixer helper itself was not the stalled loop.
+  block's incoming LR. A first repair saved `{r2,lr}` on the stack, but the
+  scheduler may leave the dynarec without returning; that abandoned stack
+  pair corrupted the outer frame and crashed after a few seconds. The bridge
+  now holds incoming LR in scheduler-preserved r2 and next PC in r10, leaving
+  the stack balanced on both returning and non-returning scheduler paths.
 
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.
