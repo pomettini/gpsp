@@ -349,6 +349,12 @@ they may land near-native with frameskip.
 - The next guarded target is FireRed's final signed-byte mixdown loop at
   0x030028FC. Its four loads and two stores per byte account for roughly 13%
   of the sampled guest memory traffic, independently of the interpolator.
+- Native mixdown completed at 39.07 estimated fps / 25.59ms average, versus
+  38.69 / 25.85ms for the interpolator alone and 37.59 / 26.60ms baseline.
+  Worst frame improved to 110ms and skipped frames fell to 2724. The combined
+  guarded paths are +3.9% over baseline, still below the threshold for the
+  broader Wario/Kirby sweep. A fresh MEMPROFILE+M4AFAST trace is next so the
+  already-eliminated mixer traffic no longer obscures residual hotspots.
 
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.
