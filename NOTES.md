@@ -239,6 +239,28 @@ this hardware by roughly 2x; the honest target is ~40 gfps overworld /
 Wario/Kirby (lighter engines) should be re-benched on the final stack -
 they may land near-native with frameskip.
 
+## SOUND32K resolution + shipping defaults (2026-07-22)
+
+- Rate audit found the integer-only conversion had left four 65.536kHz
+  assumptions behind: square/wave/noise register writes and the 256Hz PSG
+  sequencer. The earlier repair covered only square-channel sweep updates.
+  All PSG steps now share one compile-time mix-rate scale; the 64k path is
+  bit-identical and the 32k path advances at twice the per-sample step.
+  DirectSound timing and the 32.768->44.1kHz resampler were already correct.
+- RevB listening verdict: button/text-advance effects remain a little
+  high/annoying, but are acceptable for the speed benefit. The one-pole
+  low-pass stays and SOUND32K is KEPT; SOUND32K=0 remains the clean-audio
+  fallback if the tradeoff needs revisiting.
+- Overworld playbench, final candidate: 4545 frames, avg 26.60ms, worst
+  118ms, est 37.59 fps. Settled perf.log windows: aud 1.09-1.14ms, emu
+  23.93-24.02ms, blit 3.11-3.23ms, gfps 37.0-37.4, romtx 995-1000KB.
+  This confirms the earlier ~1.1ms SOUND32K audio cost (vs ~1.9ms at 64k);
+  it is not a new controlled A/B measurement.
+- Bare `make` now selects the accepted shipping profile: DYNAREC,
+  TCMPOOL, SOUND32K, BIOSHLE, NARROW, SCHEDBATCH, SCHEDBATCH2 and
+  COMPACTMEM. Each remains individually disableable with `FLAG=0`.
+  BENCH, SCHEDSTATS and all diagnostic/failed experiment flags stay opt-in.
+
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.
    Push further - lazy VCOUNT so vdraw scanlines coalesce when no per-line

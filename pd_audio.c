@@ -1,5 +1,5 @@
-/* Playdate audio output for gpSP. The core mixes PSG+DirectSound at a fixed
- * 65536 Hz (GBA_SOUND_FREQUENCY) into its ring; each frame the MAIN thread
+/* Playdate audio output for gpSP. The core mixes PSG+DirectSound at
+ * GBA_SOUND_FREQUENCY into its ring; each frame the MAIN thread
  * pulls those samples, linearly resamples them to 44100 Hz and pushes them
  * into a lock-free ring. The Playdate audio thread only drains the ring
  * (generating on the audio thread corrupts state - vecx finding).
@@ -24,15 +24,16 @@ static int16_t ring_r[RING_SIZE];
 static volatile uint32_t ring_write; /* owned by the main thread */
 static volatile uint32_t ring_read;  /* owned by the audio thread */
 
-/* 16.16 phase step: 65536/44100 source frames per output frame. */
+/* 16.16 source frames per 44.1kHz output frame. */
 #define RESAMPLE_STEP ((u32)(((u64)GBA_SOUND_FREQUENCY << 16) / 44100))
 
 static u32 resample_phase;      /* 16.16 position into the staging buffer */
 static s16 carry_l, carry_r;    /* last source frame of the previous batch */
 static int carry_valid;
 
-/* Core samples staged here each frame (stereo interleaved). 65536Hz over a
- * 20ms update = ~1311 frames; leave slack for catch-up frames. */
+/* Core samples staged here each frame (stereo interleaved). The maximum
+ * 65.536kHz rate over a 20ms update is ~1311 frames; leave slack for
+ * catch-up frames. */
 #define STAGE_FRAMES 4096
 static s16 stage[STAGE_FRAMES * 2];
 

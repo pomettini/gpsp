@@ -59,6 +59,17 @@ UADEFS =
 ULIBDIR =
 ULIBS =
 
+# Accepted shipping performance profile. Set individual options to 0 for
+# A/B builds; BENCH, SCHEDSTATS and the other diagnostic flags stay opt-in.
+DYNAREC ?= 1
+TCMPOOL ?= $(DYNAREC)
+SOUND32K ?= 1
+BIOSHLE ?= 1
+NARROW ?= $(DYNAREC)
+SCHEDBATCH ?= 1
+SCHEDBATCH2 ?= $(SCHEDBATCH)
+COMPACTMEM ?= $(DYNAREC)
+
 # make BENCH=1: scripted-input benchmark build (pd-playbench). The script
 # comes from /Shared/Emulation/gba/bench_script.txt if present, else the
 # bundled Source/bench_firered_intro.txt. Run `make clean` when toggling.
@@ -79,8 +90,8 @@ ifeq ($(TCMPROBE),1)
 UDEFS += -DPD_TCM_PROBE
 endif
 
-# make TCMPOOL=1: relocate the dynarec memory handlers into the probed DTCM
-# pool (pd_tcm_pool.c). A/B experiment; needs DYNAREC. `make clean` to toggle.
+# Default: copy the dynarec memory handlers into an isolated heap pool
+# (pd_tcm_pool.c). TCMPOOL=0 disables it; needs DYNAREC.
 ifeq ($(TCMPOOL),1)
 UDEFS += -DPD_TCM_POOL
 endif
@@ -95,31 +106,31 @@ ifeq ($(PPUHALF),1)
 UDEFS += -DPD_PPU_HALF
 endif
 
-# make SOUND32K=1: mix guest audio at 32.768kHz instead of 65.536kHz
-# (halves PSG mixing cost; inaudible on the Playdate speaker).
+# Default: mix guest audio at 32.768kHz instead of 65.536kHz to reduce PSG
+# mixing cost. SOUND32K=0 restores the cleaner 65.536kHz path.
 ifeq ($(SOUND32K),1)
 UDEFS += -DGBA_SOUND_FREQUENCY='(32*1024)'
 endif
 
-# make BIOSHLE=1: native CpuSet/CpuFastSet/LZ77 instead of emulated BIOS
-# loops (Pokemon loads/decompression; timing collapses to ~instant).
+# Default: native CpuSet/CpuFastSet/LZ77 instead of emulated BIOS loops.
+# BIOSHLE=0 restores the emulated BIOS implementations.
 ifeq ($(BIOSHLE),1)
 UDEFS += -DPD_BIOS_HLE
 endif
 
-# make NARROW=1: 16-bit T1 encodings where exactly equivalent (A/B).
+# Default with the dynarec: 16-bit T1 encodings where exactly equivalent.
 ifeq ($(NARROW),1)
 UDEFS += -DPD_NARROW
 endif
 
-# make SCHEDBATCH=1: coalesce scheduler events (one per scanline, batched
-# sound-timer fires). Timing skew <=272 cycles; measured A/B experiment.
+# Default: coalesce scheduler events (one per scanline, batched sound-timer
+# fires). Timing skew <=272 cycles; SCHEDBATCH=0 restores precise events.
 ifeq ($(SCHEDBATCH),1)
 UDEFS += -DPD_SCHED_BATCH
 endif
 
-# make SCHEDBATCH2=1: additionally fast-forward vdraw on skipped frames
-# when nothing per-line is armed (VCOUNT stales during the jump).
+# Default with SCHEDBATCH: additionally fast-forward vdraw on skipped frames
+# when nothing per-line is armed. SCHEDBATCH2=0 disables fast-forwarding.
 ifeq ($(SCHEDBATCH2),1)
 UDEFS += -DPD_SCHED_BATCH2
 endif
@@ -148,9 +159,9 @@ ifeq ($(DUMPJIT),1)
 UDEFS += -DPD_JIT_DUMP_DEVICE
 endif
 
-# make COMPACTMEM=1: memory ops call shared stub dispatchers instead of
-# inlining region dispatch at every site (see NOTES.md audit; use
-# WITHOUT INLINEMEM for the pure variant).
+# Default with the dynarec: memory ops call shared stub dispatchers instead
+# of inlining region dispatch at every site. COMPACTMEM=0 restores the
+# original per-site dispatch sequences.
 ifeq ($(COMPACTMEM),1)
 UDEFS += -DPD_COMPACT_MEM
 endif
@@ -177,7 +188,6 @@ endif
 # A/B comparisons. The dynarec executes on DEVICE only; the simulator build
 # hosts just the translator (PD_TRANSLATE_DUMP).
 # SMALL_TRANSLATION_CACHE: 2MB ROM + 384KB RAM caches (16MB budget).
-DYNAREC ?= 1
 ifeq ($(DYNAREC),1)
 UDEFS += -DHAVE_DYNAREC -DTHUMB2_ARCH -DSMALL_TRANSLATION_CACHE
 # The stub reserves the translation caches in .bss: the assembler must see

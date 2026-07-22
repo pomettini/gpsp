@@ -23,9 +23,18 @@
 #define BUFFER_SIZE        (1 << 16)
 #define BUFFER_SIZE_MASK   (BUFFER_SIZE - 1)
 
+#define GBA_SOUND_DEFAULT_FREQUENCY (64 * 1024)
+
 #ifndef GBA_SOUND_FREQUENCY
-#define GBA_SOUND_FREQUENCY   (64 * 1024)
+#define GBA_SOUND_FREQUENCY GBA_SOUND_DEFAULT_FREQUENCY
 #endif
+
+/* Scale a 16.16 step derived for the core's original 65.536kHz mix rate.
+ * GBA_SOUND_FREQUENCY is a build-time constant, so optimized builds reduce
+ * this to the identity at 64kHz and a shift at 32kHz. */
+#define GBC_SOUND_RATE_SCALE(value)                                           \
+  ((fixed16_16)(((u64)(value) * GBA_SOUND_DEFAULT_FREQUENCY) /                \
+                GBA_SOUND_FREQUENCY))
 
 #ifdef OVERCLOCK_60FPS
   #define GBC_BASE_RATE ((float)(60 * 228 * (272+960)))

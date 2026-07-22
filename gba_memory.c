@@ -44,7 +44,7 @@
   u32 rate = value & 0x7FF;                                                   \
   gbc_sound_channel[channel].rate = rate;                                     \
   gbc_sound_channel[channel].frequency_step =                                 \
-   (fixed16_16)(1048576u / (2048 - rate));                                    \
+   GBC_SOUND_RATE_SCALE(1048576u) / (2048 - rate);                            \
   gbc_sound_channel[channel].length_status = (value >> 14) & 0x01;            \
   if(value & 0x8000)                                                          \
   {                                                                           \
@@ -104,7 +104,7 @@ static const u32 gbc_sound_wave_volume[4] = { 0, 16384, 8192, 4096 };
   u32 rate = value & 0x7FF;                                                   \
   gbc_sound_channel[2].rate = rate;                                           \
   gbc_sound_channel[2].frequency_step =                                       \
-   (fixed16_16)(2097152u / (2048 - rate));                                    \
+   GBC_SOUND_RATE_SCALE(2097152u) / (2048 - rate);                            \
   gbc_sound_channel[2].length_status = (value >> 14) & 0x01;                  \
   if(value & 0x8000)                                                          \
   {                                                                           \
@@ -122,12 +122,13 @@ static const u32 gbc_sound_wave_volume[4] = { 0, 16384, 8192, 4096 };
   if(dividing_ratio == 0)                                                     \
   {                                                                           \
     gbc_sound_channel[3].frequency_step =                                     \
-     (fixed16_16)(1048576u >> (frequency_shift + 1));                         \
+     GBC_SOUND_RATE_SCALE(1048576u) >> (frequency_shift + 1);                 \
   }                                                                           \
   else                                                                        \
   {                                                                           \
     gbc_sound_channel[3].frequency_step =                                     \
-     (fixed16_16)(524288u / (dividing_ratio << (frequency_shift + 1)));       \
+     GBC_SOUND_RATE_SCALE(524288u) /                                          \
+      (dividing_ratio << (frequency_shift + 1));                              \
   }                                                                           \
   gbc_sound_channel[3].noise_type = (value >> 3) & 0x01;                      \
   gbc_sound_channel[3].length_status = (value >> 14) & 0x01;                  \

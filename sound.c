@@ -250,12 +250,7 @@ u32 gbc_sound_master_volume;
         break;                                                                \
       }                                                                       \
                                                                               \
-      /* (131072/(2048-rate))*8 / sound_frequency, in 16.16 fixed point.      \
-       * At sound_frequency == 2^16 this is exactly 2^20/(2048-rate)          \
-       * (bit-identical to the old hardcoded constant); the general form      \
-       * keeps PSG pitch correct at other mix rates (SOUND32K).               */ \
-      frequency_step = (fixed16_16)((u32)((131072ull * 8 * 65536) /           \
-                        GBA_SOUND_FREQUENCY) / (2048 - rate));                \
+      frequency_step = GBC_SOUND_RATE_SCALE(1048576u) / (2048 - rate);        \
                                                                               \
       gs->frequency_step = frequency_step;                                    \
       gs->rate = rate;                                                        \
@@ -587,8 +582,8 @@ void reset_sound(void)
 
 void init_sound()
 {
-  /* 256 / sound_frequency in 16.16 == 256 (sound_frequency == 2^16). */
-  gbc_sound_tick_step = (fixed16_16)256u;
+  /* Clock the length/envelope/sweep sequencer at 256Hz at either mix rate. */
+  gbc_sound_tick_step = GBC_SOUND_RATE_SCALE(256u);
 
   init_noise_table(noise_table15, 32767, 14);
   init_noise_table(noise_table7, 127, 6);
