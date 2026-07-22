@@ -363,6 +363,13 @@ they may land near-native with frameskip.
   BuildSpritePriorities, SortSprites and CopyMatricesToOamBuffer routines.
   `SPRITEFAST=1` replaces those four pure-memory functions behind exact ROM
   signatures; callbacks and OAM submission remain guest code.
+- The guarded sprite build completed at 40.78 estimated fps / 24.52ms
+  average. Against the 37.59 fps / 26.60ms baseline this is +8.5%, with slow
+  frames down from 3434 to 2635 and skipped frames from 2961 to 2583. Against
+  native audio alone (39.07 fps / 25.59ms), the sprite passes add another
+  4.4%. Both signature guards engaged and the full scripted run completed.
+  This is the first combined result large enough to justify the broader
+  compatibility sweep after one fresh profile confirms the next hotspot.
 
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.
