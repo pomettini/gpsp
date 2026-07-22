@@ -314,6 +314,16 @@ they may land near-native with frameskip.
 - `M4ADUMP=1` writes the guest's 32KB IWRAM to Data/iwram.bin after 300
   updates, with no hot-path instrumentation. Next: capture/disassemble the
   exact copied 2KB mixer and design a guarded native inner-loop fast path.
+- The first snapshot accidentally wrote the dynarec SMC-shadow half of the
+  contiguous IWRAM allocation. `M4ADUMP` now writes `iwram + 0x8000`; the
+  corrected 32KB capture has SHA1 `a44a9f9e99052d0155763ee64a0385ad60b4cc48`
+  and confirms the interpolating PCM word loop at guest PC `0x03002BEC`.
+- `M4AFAST=1` is the first opt-in native experiment. It replaces only that
+  loop when a 132-byte runtime-code signature matches exactly, processes at
+  most 12 output samples per call (roughly the existing scheduler-batch
+  skew), and falls back into the original guest instructions for unexpected
+  output pointers or sample boundaries. It is not a shipping default until
+  the RevB A/B and listening test pass.
 
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.

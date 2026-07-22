@@ -738,6 +738,29 @@ defsymbl(t2_hle_div)
   bx lr
 .size t2_hle_div, .-t2_hle_div
 
+#ifdef PD_M4A_HLE
+@ FireRed m4a inner-loop bridge. C returns next PC in r0 and the equivalent
+@ guest-cycle charge in r1. Processed chunks are short; cross a scheduler
+@ boundary through the normal ARM update helper before looking up next_pc.
+defsymbl(t2_hle_m4a_inner)
+  save_flags()
+  store_registers_arm()
+  call_c_function_abs(pd_m4a_hle_inner)
+  add reg_cycles, reg_cycles, r1
+  load_registers_arm()
+  restore_flags()
+  cmp reg_cycles, #0
+  blt 1f
+  mov r2, r0
+  mov reg_gpc, r0
+  ldr r1, =arm_update_gba_arm
+  blx r1
+  mov r0, r2
+1:
+  bx lr
+.size t2_hle_m4a_inner, .-t2_hle_m4a_inner
+#endif
+
 #define store_lookup_table(store_type)                                       ;\
   .word ext_store_ignore                  /*   -1: ignore, for > 0x0F      */;\
   .word ext_store_ignore                  /* 0x00: BIOS, ignore            */;\

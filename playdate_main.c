@@ -142,6 +142,11 @@ static u32 perf_guest_frames, perf_last_frame_counter;
 static u32 perf_emu_ms, perf_blit_ms, perf_aud_ms, perf_window_start_ms;
 static u32 perf_emu_max_ms;
 
+#ifdef PD_M4A_HLE
+extern u32 pd_m4a_hle_matched;
+static int pd_m4a_hle_logged;
+#endif
+
 #if defined(PD_M4A_DUMP) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
 static u32 pd_m4a_dump_frames;
 static int pd_m4a_dumped;
@@ -388,6 +393,11 @@ static void start_emulation(void)
   perf_window_start_ms = pd->system->getCurrentTimeMilliseconds();
   pd->system->logToConsole("gpsp: running %s", selected_rom);
 
+#ifdef PD_M4A_HLE
+  pd_m4a_hle_matched = 0;
+  pd_m4a_hle_logged = 0;
+#endif
+
 #if defined(PD_M4A_DUMP) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
   pd_m4a_dump_frames = 0;
   pd_m4a_dumped = 0;
@@ -608,6 +618,14 @@ static int update(void *userdata)
   int skip;
 
   (void)userdata;
+
+#ifdef PD_M4A_HLE
+  if (pd_m4a_hle_matched && !pd_m4a_hle_logged)
+  {
+    pd_m4a_hle_logged = 1;
+    pd->system->logToConsole("gpsp: FireRed m4a fast path active");
+  }
+#endif
 
   if (picker_active)
   {

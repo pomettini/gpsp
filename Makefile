@@ -42,6 +42,7 @@ SRC = playdate_main.c \
       pd_tcm_probe.c \
       pd_tcm_pool.c \
       pd_bios_hle.c \
+      pd_m4a_hle.c \
       pd_dynarec_hoststub.c
 
 # Non-.c translation units (common.mk's object list only handles .c).
@@ -69,6 +70,7 @@ NARROW ?= $(DYNAREC)
 SCHEDBATCH ?= 1
 SCHEDBATCH2 ?= $(SCHEDBATCH)
 COMPACTMEM ?= $(DYNAREC)
+M4AFAST ?= 0
 
 # make BENCH=1: scripted-input benchmark build (pd-playbench). The script
 # comes from /Shared/Emulation/gba/bench_script.txt if present, else the
@@ -164,6 +166,16 @@ endif
 # instrumentation, so the emulator runs at normal speed before the write.
 ifeq ($(M4ADUMP),1)
 UDEFS += -DPD_M4A_DUMP
+endif
+
+# make M4AFAST=1: native, signature-guarded FireRed SoundMainRAM inner
+# mixer loop. Experimental until device A/B performance and audio agree.
+ifeq ($(M4AFAST),1)
+ifneq ($(DYNAREC),1)
+$(error M4AFAST=1 requires DYNAREC=1)
+endif
+UDEFS += -DPD_M4A_HLE
+UADEFS += -DPD_M4A_HLE
 endif
 
 # Default with the dynarec: memory ops call shared stub dispatchers instead

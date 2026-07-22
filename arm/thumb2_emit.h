@@ -56,6 +56,9 @@ void execute_swi_thumb(u32 pc);
 /* Hardware-SDIV division helpers, in thumb2_stub.S */
 void t2_hle_div(void);
 void t2_hle_divarm(void);
+#ifdef PD_M4A_HLE
+void t2_hle_m4a_inner(void);
+#endif
 
 #define armfn_gbaup_idle_arm       0
 #define armfn_gbaup_idle_thumb     1

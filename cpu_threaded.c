@@ -2981,6 +2981,15 @@ u8 function_cc *block_lookup_address_thumb(u32 pc)
 #define MAX_BLOCK_SIZE   1024   // 2/4KiB blocks max
 #define MAX_EXITS          32   // This covers 99% blocks
 
+#ifdef PD_M4A_HLE
+#define pd_m4a_scan_gate_arm(end_pc) ((end_pc) == 0x03002BECU)
+#define pd_m4a_scan_gate_thumb(end_pc) 0
+extern int pd_m4a_hle_matches(void);
+#else
+#define pd_m4a_scan_gate_arm(end_pc) 0
+#define pd_m4a_scan_gate_thumb(end_pc) 0
+#endif
+
 block_data_type block_data[MAX_BLOCK_SIZE];
 block_exit_type block_exits[MAX_EXITS];
 
@@ -3071,6 +3080,8 @@ block_exit_type block_exits[MAX_EXITS];
       if(block_end_pc == translation_gate_target_pc[i])                       \
         goto block_end;                                                       \
     }                                                                         \
+    if(pd_m4a_scan_gate_##type(block_end_pc))                                 \
+      goto block_end;                                                        \
                                                                               \
     block_data[block_data_position].update_cycles = 0;                        \
     block_data_position++;                                                    \
@@ -3144,6 +3155,24 @@ bool translate_block_arm(u32 pc, bool ram_region)
 
   pd_lit_reset();
   generate_block_prologue();
+
+#ifdef PD_M4A_HLE
+  if (ram_region && pc == 0x03002BECU && pd_m4a_hle_matches())
+  {
+    intptr_t smc_offset = -0x8000;
+    if (address32(pc_address_block, (pc & 0x7FFF) + smc_offset) == 0)
+      address32(pc_address_block, (pc & 0x7FFF) + smc_offset) =
+        CODE_TAG_BLOCK32;
+    iwram_code_min = MIN(pc & 0x7FFF, iwram_code_min);
+    iwram_code_max = MAX(pc & 0x7FFF, iwram_code_max);
+    generate_function_call(t2_hle_m4a_inner);
+    generate_indirect_branch_no_cycle_update(arm);
+    pd_lit_end_flush();
+    align_translation_ptr();
+    ram_translation_ptr = translation_ptr;
+    return true;
+  }
+#endif
 
   /* This is a function because it's used a lot more than it might seem (all
      of the data processing functions can access it), and its expansion was
@@ -3520,4 +3549,3 @@ void flush_dynarec_caches(void)
   iwram_code_max = 0x8000;
   flush_translation_cache_ram();
 }
-
