@@ -12,6 +12,9 @@
 #include "render.h"
 #include "rom_picker.h"
 #include "pd_playbench.h"
+#ifdef PD_MEM_PROFILE
+#include "pd_memprof.h"
+#endif
 
 void pd_filestream_init(PlaydateAPI *pd);
 #ifdef TARGET_PLAYDATE
@@ -138,6 +141,58 @@ static u32 perf_emu_r_ms, perf_emu_s_ms;
 static u32 perf_guest_frames, perf_last_frame_counter;
 static u32 perf_emu_ms, perf_blit_ms, perf_aud_ms, perf_window_start_ms;
 static u32 perf_emu_max_ms;
+
+#if defined(PD_MEM_PROFILE) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
+typedef struct
+{
+  char magic[8];
+  uint32_t version;
+  uint32_t period;
+  uint32_t count;
+  uint32_t dropped;
+  uint32_t capacity;
+} PDMemProfileHeader;
+
+static int pd_memprof_dumped;
+
+static void pd_memprof_reset(void)
+{
+  pd_memprof_count = 0;
+  pd_memprof_dropped = 0;
+  reg[PD_MEMPROF_COUNT_REG] = PD_MEMPROF_INITIAL;
+  pd_memprof_dumped = 0;
+  pd->system->logToConsole("gpsp memprof: sampling 1/%u, capacity %u",
+                           (unsigned)PD_MEMPROF_PERIOD,
+                           (unsigned)PD_MEMPROF_CAPACITY);
+}
+
+static void pd_memprof_dump(void)
+{
+  PDMemProfileHeader header = {
+    {'G', 'P', 'S', 'P', 'M', 'E', 'M', '1'},
+    1,
+    PD_MEMPROF_PERIOD,
+    pd_memprof_count,
+    pd_memprof_dropped,
+    PD_MEMPROF_CAPACITY
+  };
+  SDFile *f = pd->file->open("memprof.bin", kFileWrite);
+
+  pd_memprof_dumped = 1;
+  if (!f)
+  {
+    pd->system->logToConsole("gpsp memprof: cannot write memprof.bin");
+    return;
+  }
+
+  pd->file->write(f, &header, sizeof(header));
+  pd->file->write(f, pd_memprof_records,
+                  (unsigned int)(header.count * sizeof(pd_memprof_records[0])));
+  pd->file->close(f);
+  pd->system->logToConsole("gpsp memprof: wrote %u samples, dropped %u",
+                           (unsigned)header.count, (unsigned)header.dropped);
+}
+#endif
 
 /* --- Save RAM -------------------------------------------------------------
  * gamepak_backup (SRAM/Flash/EEPROM, 128KB) persists as <rom>.sav in the
@@ -327,6 +382,10 @@ static void start_emulation(void)
   perf_last_frame_counter = frame_counter;
   perf_window_start_ms = pd->system->getCurrentTimeMilliseconds();
   pd->system->logToConsole("gpsp: running %s", selected_rom);
+
+#if defined(PD_MEM_PROFILE) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
+  pd_memprof_reset();
+#endif
 
 #if defined(PD_SCHED_STATS) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
   /* Warm-lookup microbenchmark: how much does one runtime block lookup
@@ -627,6 +686,11 @@ static int update(void *userdata)
   last_update_ms = t2 - t0;
   pd_playbench_update();
   pd_playbench_report_frame((float)last_update_ms, skip ? 1 : 0);
+
+#if defined(PD_MEM_PROFILE) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
+  if (!pd_memprof_dumped && pd_playbench_is_finished())
+    pd_memprof_dump();
+#endif
 
 #ifdef PD_FRAME_DUMP
   /* Diagnostic: dump the raw RGB565 guest frame every ~10s so visual

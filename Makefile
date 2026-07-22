@@ -166,6 +166,23 @@ ifeq ($(COMPACTMEM),1)
 UDEFS += -DPD_COMPACT_MEM
 endif
 
+# make MEMPROFILE=1: sample one in every 8191 dynarec memory operations and
+# write Data/memprof.bin when the playbench script finishes. Diagnostic only:
+# the dispatcher countdown intentionally perturbs benchmark timing.
+ifeq ($(MEMPROFILE),1)
+ifneq ($(DYNAREC),1)
+$(error MEMPROFILE=1 requires DYNAREC=1)
+endif
+ifneq ($(COMPACTMEM),1)
+$(error MEMPROFILE=1 requires COMPACTMEM=1)
+endif
+ifneq ($(BENCH),1)
+$(error MEMPROFILE=1 requires BENCH=1)
+endif
+UDEFS += -DPD_MEM_PROFILE
+UADEFS += -DPD_MEM_PROFILE
+endif
+
 # make SCHEDSTATS=1: count+sample update_gba scheduler round-trips
 # (perf.log gains a "gba" field). Tiny per-call overhead; A/B only.
 ifeq ($(SCHEDSTATS),1)

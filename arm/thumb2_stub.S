@@ -14,6 +14,7 @@
 @    collects standard sections.
 
 #include "../gpsp_config.h"
+#include "../pd_memprof.h"
 
 .syntax unified
 .cpu cortex-m7
@@ -642,7 +643,35 @@ defsymbl(t2_hle_divarm)
 @ handler returns straight to the site via lr, exactly as when sites
 @ BLX'd it directly. Table index = usat4(addr ror abits, asr 24-abits).
 
-#define mem_dispatch_builder(tblnum, abits)                                  ;defsymbl(t2_mem_dispatch_##tblnum)                                           ;  .if abits                                                                  ;  ror r2, r0, #(abits)                                                       ;  usat r2, #4, r2, asr #(24-(abits))                                         ;  .else                                                                      ;  usat r2, #4, r0, asr #24                                                   ;  .endif                                                                     ;  addw r2, r2, #((0x118 + 68*(tblnum) + 4) >> 2)                             ;  ldr r2, [reg_base, r2, lsl #2]                                             ;  bx r2                                                                      ;.size t2_mem_dispatch_##tblnum, .-t2_mem_dispatch_##tblnum
+#ifdef PD_MEM_PROFILE
+@ The hot path is one cached counter load/store plus subtract and CBNZ.
+#define memprof_tick(tblnum)                                                  ;\
+  ldr r2, [reg_base, #(PD_MEMPROF_COUNT_REG * 4)]                             ;\
+  sub.w r2, r2, #1                                                           ;\
+  str r2, [reg_base, #(PD_MEMPROF_COUNT_REG * 4)]                             ;\
+  cbnz r2, 91f                                                               ;\
+  movw r2, #PD_MEMPROF_PERIOD                                                ;\
+  str r2, [reg_base, #(PD_MEMPROF_COUNT_REG * 4)]                             ;\
+  movw r2, #(tblnum)                                                         ;\
+  bl t2_memprof_sample                                                       ;\
+91:
+#else
+#define memprof_tick(tblnum)
+#endif
+
+#define mem_dispatch_builder(tblnum, abits)                                  ;\
+defsymbl(t2_mem_dispatch_##tblnum)                                           ;\
+  memprof_tick(tblnum)                                                       ;\
+  .if abits                                                                  ;\
+  ror r2, r0, #(abits)                                                       ;\
+  usat r2, #4, r2, asr #(24-(abits))                                         ;\
+  .else                                                                      ;\
+  usat r2, #4, r0, asr #24                                                   ;\
+  .endif                                                                     ;\
+  addw r2, r2, #((0x118 + 68*(tblnum) + 4) >> 2)                             ;\
+  ldr r2, [reg_base, r2, lsl #2]                                             ;\
+  bx r2                                                                      ;\
+.size t2_mem_dispatch_##tblnum, .-t2_mem_dispatch_##tblnum
 
 mem_dispatch_builder(0, 0)   @ store u8
 mem_dispatch_builder(1, 0)   @ store u16
@@ -653,6 +682,42 @@ mem_dispatch_builder(5, 0)   @ load s8
 mem_dispatch_builder(6, 1)   @ load u16
 mem_dispatch_builder(7, 1)   @ load s16
 mem_dispatch_builder(8, 2)   @ load u32
+
+#ifdef PD_MEM_PROFILE
+@ Input: r0 = raw guest address, r2 = operation kind (the dispatch table
+@ number), r10 = exact guest PC. r1 is preserved for stores.
+thumb_label(t2_memprof_sample)
+  save_flags()
+  push {r0, r1, r3, lr}
+  mov r1, r0                              @ keep raw address in r1
+  ldr r3, =pd_memprof_count
+  ldr r0, [r3]
+  movw lr, #PD_MEMPROF_CAPACITY
+  cmp r0, lr
+  bhs 92f
+
+  ldr lr, =pd_memprof_records
+  add r3, r0, r0, lsl #1                 @ record index * 3 words
+  add lr, lr, r3, lsl #2
+  str reg_gpc, [lr, #0]
+  str r1, [lr, #4]
+  str r2, [lr, #8]
+  ldr r3, =pd_memprof_count
+  add r0, r0, #1
+  str r0, [r3]
+  b 93f
+
+92:
+  ldr r3, =pd_memprof_dropped
+  ldr r0, [r3]
+  add r0, r0, #1
+  str r0, [r3]
+93:
+  pop {r0, r1, r3, lr}
+  restore_flags()
+  bx lr
+.size t2_memprof_sample, .-t2_memprof_sample
+#endif
 
 defsymbl(t2_hle_div)
   save_flags()
@@ -1074,3 +1139,17 @@ defsymbl_data(rom_translation_cache)
 defsymbl_data(ram_translation_cache)
   .space RAM_TRANSLATION_CACHE_SIZE
 .size ram_translation_cache, .-ram_translation_cache
+
+#ifdef PD_MEM_PROFILE
+@ Keep profiler storage after the fixed reg-base layout above: inserting it
+@ near reg[] would invalidate every hard-coded spsr/table/memory offset.
+defsymbl_data(pd_memprof_count)
+  .space 4
+.size pd_memprof_count, .-pd_memprof_count
+defsymbl_data(pd_memprof_dropped)
+  .space 4
+.size pd_memprof_dropped, .-pd_memprof_dropped
+defsymbl_data(pd_memprof_records)
+  .space PD_MEMPROF_CAPACITY * 12
+.size pd_memprof_records, .-pd_memprof_records
+#endif

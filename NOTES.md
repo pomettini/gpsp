@@ -278,6 +278,24 @@ they may land near-native with frameskip.
 - The implementation was removed and the normal CPU budget restored.
   This experiment is closed.
 
+## Guest-memory hotspot profiler (2026-07-22)
+
+- `MEMPROFILE=1` is an opt-in diagnostic for the compact Thumb-2 memory
+  dispatchers. It samples every 8191st guest load/store (initial phase
+  offset 4093) and records exact guest PC, raw address and operation kind.
+  The prime interval avoids repeatedly selecting one point in a short loop.
+- The hot diagnostic path is a four-instruction countdown using unused
+  `reg[63]`; the rare sample path preserves the address, store value, LR,
+  cached guest register and APSR flags. A 32768-record fixed buffer sits
+  after the dynarec's fixed-offset state and translation caches.
+- When playbench finishes, Data/memprof.bin receives a versioned header and
+  the trace. `tools/analyze_memprof.py` aggregates operation types, regions,
+  guest PCs, PC/type/region tuples and 4KB target pages. Timing from this
+  diagnostic build is intentionally not an A/B performance result.
+- Assembly verification: the profile build has the expected countdown and
+  recorder instructions; with the flag disabled, the backend `.text` is
+  byte-for-byte identical to the pre-profiler backend. Device run pending.
+
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.
    Push further - lazy VCOUNT so vdraw scanlines coalesce when no per-line
