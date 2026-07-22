@@ -331,6 +331,12 @@ they may land near-native with frameskip.
   pair corrupted the outer frame and crashed after a few seconds. The bridge
   now holds incoming LR in scheduler-preserved r2 and next PC in r10, leaving
   the stack balanced on both returning and non-returning scheduler paths.
+- Corrected RevB run completed at 38.06 estimated fps / 26.27ms average,
+  versus the 37.59 / 26.60ms baseline and 37.98 / 26.33ms snapshot run: too
+  small to count as an improvement. The first helper returned through block
+  lookup every 12 samples. It now consumes the dynarec's actual remaining
+  cycle budget (maximum 128 samples), reducing those round trips while still
+  limiting scheduler overshoot to one original four-sample mixer group.
 
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.

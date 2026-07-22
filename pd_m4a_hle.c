@@ -1,8 +1,8 @@
 /* Native fast path for the hottest inner loop of FireRed's runtime-copied
  * m4a SoundMainRAM mixer. The translator enables this only when the exact
  * captured instruction sequence matches; unusual output pointers fall back
- * after the loop's two initial loads. Work is capped at three four-sample
- * groups so scheduler-event skew remains comparable to SCHEDBATCH. */
+ * after the loop's two initial loads. Each call follows the dynarec's current
+ * cycle budget and can overshoot it by at most one four-sample group. */
 
 #ifdef PD_M4A_HLE
 
@@ -13,7 +13,7 @@
 #define M4A_INNER_BODY_LEN 132U
 #define M4A_INNER_FNV1A    0x678FE071U
 #define M4A_PCM_STRIDE     0x630U
-#define M4A_MAX_GROUPS     3U
+#define M4A_MAX_GROUPS     32U
 
 u32 pd_m4a_hle_matched;
 
@@ -51,7 +51,7 @@ static u32 m4a_ror8(u32 value)
 }
 
 /* AAPCS returns this u64 in r0:r1: next guest PC, then charged cycles. */
-u64 pd_m4a_hle_inner(void)
+u64 pd_m4a_hle_inner(u32 cycle_budget)
 {
   u32 r0 = reg[0], r1 = reg[1], r2 = reg[2], r3 = reg[3];
   u32 r4 = reg[4], r5 = reg[5], r6 = reg[6], r7 = reg[7], r8 = reg[8];
@@ -74,7 +74,8 @@ u64 pd_m4a_hle_inner(void)
     return ((u64)cycles << 32) | next_pc;
   }
 
-  while ((s32)r8 > 0 && groups < M4A_MAX_GROUPS)
+  while ((s32)r8 > 0 && groups < M4A_MAX_GROUPS &&
+         (groups == 0 || cycles < cycle_budget))
   {
     u32 out_off = r5 & 0x7FFF;
     u32 lane;

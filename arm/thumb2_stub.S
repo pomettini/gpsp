@@ -745,6 +745,7 @@ defsymbl(t2_hle_div)
 defsymbl(t2_hle_m4a_inner)
   save_flags()
   store_registers_arm()
+  mvn r0, reg_cycles
   call_c_function_abs(pd_m4a_hle_inner)
   add reg_cycles, reg_cycles, r1
   load_registers_arm()
