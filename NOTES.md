@@ -261,6 +261,23 @@ they may land near-native with frameskip.
   COMPACTMEM. Each remains individually disableable with `FLAG=0`.
   BENCH, SCHEDSTATS and all diagnostic/failed experiment flags stay opt-in.
 
+## CPU underclock experiment: KILLED (2026-07-22)
+
+- Tier 2 kept video, timer and audio clocks normal while giving the
+  dynarec an 8/9 CPU-cycle budget (+12.5% charged cycles).
+- On the same 4545-frame overworld script, the baseline was 26.60ms avg,
+  37.59 estimated fps and 118ms worst; tier 2 measured 26.64ms avg, 37.53
+  estimated fps and 126ms worst. This is flat, with a slightly worse tail.
+  Matching perf.log windows during the script were also unchanged. Later
+  faster-looking windows occurred after the scripted report and are not a
+  controlled comparison.
+- Pokemon's idle-loop elimination already advances idle guest cycles at
+  very low host cost. Charging more per active dynarec cycle therefore
+  removes cheap idle budget without reducing the fixed PSRAM-bound active
+  work; stronger tiers would instead risk missing guest deadlines.
+- The implementation was removed and the normal CPU budget restored.
+  This experiment is closed.
+
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.
    Push further - lazy VCOUNT so vdraw scanlines coalesce when no per-line
