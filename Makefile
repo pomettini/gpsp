@@ -43,6 +43,7 @@ SRC = playdate_main.c \
       pd_tcm_pool.c \
       pd_bios_hle.c \
       pd_m4a_hle.c \
+      pd_firered_hle.c \
       pd_dynarec_hoststub.c
 
 # Non-.c translation units (common.mk's object list only handles .c).
@@ -71,6 +72,7 @@ SCHEDBATCH ?= 1
 SCHEDBATCH2 ?= $(SCHEDBATCH)
 COMPACTMEM ?= $(DYNAREC)
 M4AFAST ?= 0
+SPRITEFAST ?= 0
 
 # make BENCH=1: scripted-input benchmark build (pd-playbench). The script
 # comes from /Shared/Emulation/gba/bench_script.txt if present, else the
@@ -176,6 +178,16 @@ $(error M4AFAST=1 requires DYNAREC=1)
 endif
 UDEFS += -DPD_M4A_HLE
 UADEFS += -DPD_M4A_HLE
+endif
+
+# make SPRITEFAST=1: native, ROM-signature-guarded FireRed US 1.0 sprite
+# coordinate/priority/sort/matrix passes. Experimental device A/B path.
+ifeq ($(SPRITEFAST),1)
+ifneq ($(DYNAREC),1)
+$(error SPRITEFAST=1 requires DYNAREC=1)
+endif
+UDEFS += -DPD_FIRERED_SPRITE_HLE
+UADEFS += -DPD_FIRERED_SPRITE_HLE
 endif
 
 # Default with the dynarec: memory ops call shared stub dispatchers instead

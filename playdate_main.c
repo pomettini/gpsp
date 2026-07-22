@@ -146,6 +146,10 @@ static u32 perf_emu_max_ms;
 extern u32 pd_m4a_hle_matched;
 static int pd_m4a_hle_logged;
 #endif
+#ifdef PD_FIRERED_SPRITE_HLE
+extern u32 pd_firered_hle_matched;
+static int pd_firered_hle_logged;
+#endif
 
 #if defined(PD_M4A_DUMP) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
 static u32 pd_m4a_dump_frames;
@@ -397,6 +401,10 @@ static void start_emulation(void)
   pd_m4a_hle_matched = 0;
   pd_m4a_hle_logged = 0;
 #endif
+#ifdef PD_FIRERED_SPRITE_HLE
+  pd_firered_hle_matched = 0;
+  pd_firered_hle_logged = 0;
+#endif
 
 #if defined(PD_M4A_DUMP) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
   pd_m4a_dump_frames = 0;
@@ -624,6 +632,13 @@ static int update(void *userdata)
   {
     pd_m4a_hle_logged = 1;
     pd->system->logToConsole("gpsp: FireRed m4a fast path active");
+  }
+#endif
+#ifdef PD_FIRERED_SPRITE_HLE
+  if (pd_firered_hle_matched && !pd_firered_hle_logged)
+  {
+    pd_firered_hle_logged = 1;
+    pd->system->logToConsole("gpsp: FireRed sprite fast path active");
   }
 #endif
 

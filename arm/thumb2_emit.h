@@ -60,6 +60,9 @@ void t2_hle_divarm(void);
 void t2_hle_m4a_inner(void);
 void t2_hle_m4a_mixdown(void);
 #endif
+#ifdef PD_FIRERED_SPRITE_HLE
+void t2_hle_firered_thumb(void);
+#endif
 
 #define armfn_gbaup_idle_arm       0
 #define armfn_gbaup_idle_thumb     1

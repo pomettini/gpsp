@@ -355,6 +355,14 @@ they may land near-native with frameskip.
   guarded paths are +3.9% over baseline, still below the threshold for the
   broader Wario/Kirby sweep. A fresh MEMPROFILE+M4AFAST trace is next so the
   already-eliminated mixer traffic no longer obscures residual hotspots.
+- The combined trace recorded 3256 samples / 26.7M guest memory operations.
+  Mixdown traffic disappeared and the interpolator fell from 750 to 35
+  samples. FireRed's per-frame sprite pipeline at 0x08006B00-0x08007000 is
+  now the concentrated residual target: 950 samples (29.2%), stable in every
+  chronological slice. It matches FireRed US 1.0's UpdateOamCoords,
+  BuildSpritePriorities, SortSprites and CopyMatricesToOamBuffer routines.
+  `SPRITEFAST=1` replaces those four pure-memory functions behind exact ROM
+  signatures; callbacks and OAM submission remain guest code.
 
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.

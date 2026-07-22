@@ -3344,6 +3344,25 @@ bool translate_block_thumb(u32 pc, bool ram_region)
   pd_lit_reset();
   generate_block_prologue();
 
+#ifdef PD_FIRERED_SPRITE_HLE
+  {
+    extern int pd_firered_hle_matches(u32 pc);
+    if (!ram_region &&
+        (pc == 0x08006BF4U || pc == 0x08006CB8U ||
+         pc == 0x08006CF8U || pc == 0x08006EB8U) &&
+        pd_firered_hle_matches(pc))
+    {
+      t2_load_imm32(reg_gpc, pc);
+      generate_function_call(t2_hle_firered_thumb);
+      generate_indirect_branch_no_cycle_update(thumb);
+      pd_lit_end_flush();
+      align_translation_ptr();
+      rom_translation_ptr = translation_ptr;
+      return true;
+    }
+  }
+#endif
+
   /* This is a function because it's used a lot more than it might seem (all
      of the data processing functions can access it), and its expansion was
      massacreing the compiler. */

@@ -784,6 +784,30 @@ defsymbl(t2_hle_m4a_mixdown)
 .size t2_hle_m4a_mixdown, .-t2_hle_m4a_mixdown
 #endif
 
+#ifdef PD_FIRERED_SPRITE_HLE
+@ FireRed US 1.0 sprite-pipeline HLE. reg_gpc identifies the matched routine;
+@ C returns its guest LR and approximate original cycle charge in r0:r1.
+defsymbl(t2_hle_firered_thumb)
+  save_flags()
+  store_registers_thumb()
+  mov r0, reg_gpc
+  call_c_function_abs(pd_firered_hle)
+  add reg_cycles, reg_cycles, r1
+  load_registers_thumb()
+  restore_flags()
+  cmp reg_cycles, #0
+  blt 1f
+  mov r2, lr
+  mov reg_gpc, r0
+  ldr r1, =arm_update_gba_thumb
+  blx r1
+  mov r0, reg_gpc
+  mov lr, r2
+1:
+  bx lr
+.size t2_hle_firered_thumb, .-t2_hle_firered_thumb
+#endif
+
 #define store_lookup_table(store_type)                                       ;\
   .word ext_store_ignore                  /*   -1: ignore, for > 0x0F      */;\
   .word ext_store_ignore                  /* 0x00: BIOS, ignore            */;\
