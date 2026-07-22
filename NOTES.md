@@ -342,9 +342,13 @@ they may land near-native with frameskip.
   final perf window reduced rendered-update emulation from roughly
   30.3-30.9ms to 28.9ms while audio and blit stayed flat. This confirms the
   native loop is useful, but the result is not yet large enough to enable by
-  default. The next revision also handles the original looping-sample wrap
-  at 0x03002B6C in place; zero-length/non-looping endings still resume the
-  guest shutdown path at 0x03002B90.
+  default.
+- Handling the original looping-sample wrap in the helper was flat at 38.56
+  fps / 25.93ms and slightly increased the comparable final-window emuR
+  (29.3ms versus 28.9ms). Dropped: it added state-machine risk without gain.
+- The next guarded target is FireRed's final signed-byte mixdown loop at
+  0x030028FC. Its four loads and two stores per byte account for roughly 13%
+  of the sampled guest memory traffic, independently of the interpolator.
 
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.

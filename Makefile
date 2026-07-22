@@ -168,8 +168,8 @@ ifeq ($(M4ADUMP),1)
 UDEFS += -DPD_M4A_DUMP
 endif
 
-# make M4AFAST=1: native, signature-guarded FireRed SoundMainRAM inner
-# mixer loop. Experimental until device A/B performance and audio agree.
+# make M4AFAST=1: native, signature-guarded FireRed SoundMainRAM interpolator
+# and final mixdown loops. Experimental until device A/B and audio agree.
 ifeq ($(M4AFAST),1)
 ifneq ($(DYNAREC),1)
 $(error M4AFAST=1 requires DYNAREC=1)

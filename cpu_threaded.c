@@ -2982,9 +2982,10 @@ u8 function_cc *block_lookup_address_thumb(u32 pc)
 #define MAX_EXITS          32   // This covers 99% blocks
 
 #ifdef PD_M4A_HLE
-#define pd_m4a_scan_gate_arm(end_pc) ((end_pc) == 0x03002BECU)
+#define pd_m4a_scan_gate_arm(end_pc)                                       \
+  ((end_pc) == 0x03002BECU || (end_pc) == 0x030028FCU)
 #define pd_m4a_scan_gate_thumb(end_pc) 0
-extern int pd_m4a_hle_matches(void);
+extern int pd_m4a_hle_matches(u32 pc);
 #else
 #define pd_m4a_scan_gate_arm(end_pc) 0
 #define pd_m4a_scan_gate_thumb(end_pc) 0
@@ -3157,7 +3158,8 @@ bool translate_block_arm(u32 pc, bool ram_region)
   generate_block_prologue();
 
 #ifdef PD_M4A_HLE
-  if (ram_region && pc == 0x03002BECU && pd_m4a_hle_matches())
+  if (ram_region && (pc == 0x03002BECU || pc == 0x030028FCU) &&
+      pd_m4a_hle_matches(pc))
   {
     intptr_t smc_offset = -0x8000;
     if (address32(pc_address_block, (pc & 0x7FFF) + smc_offset) == 0)
@@ -3165,7 +3167,8 @@ bool translate_block_arm(u32 pc, bool ram_region)
         CODE_TAG_BLOCK32;
     iwram_code_min = MIN(pc & 0x7FFF, iwram_code_min);
     iwram_code_max = MAX(pc & 0x7FFF, iwram_code_max);
-    generate_function_call(t2_hle_m4a_inner);
+    generate_function_call(pc == 0x03002BECU ? t2_hle_m4a_inner :
+                                              t2_hle_m4a_mixdown);
     generate_indirect_branch_no_cycle_update(arm);
     pd_lit_end_flush();
     align_translation_ptr();

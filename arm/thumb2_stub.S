@@ -761,6 +761,27 @@ defsymbl(t2_hle_m4a_inner)
 1:
   bx lr
 .size t2_hle_m4a_inner, .-t2_hle_m4a_inner
+
+@ FireRed final signed-byte mixdown. Same ABI and scheduler escape as above.
+defsymbl(t2_hle_m4a_mixdown)
+  save_flags()
+  store_registers_arm()
+  mvn r0, reg_cycles
+  call_c_function_abs(pd_m4a_hle_mixdown)
+  add reg_cycles, reg_cycles, r1
+  load_registers_arm()
+  restore_flags()
+  cmp reg_cycles, #0
+  blt 1f
+  mov r2, lr
+  mov reg_gpc, r0
+  ldr r1, =arm_update_gba_arm
+  blx r1
+  mov r0, reg_gpc
+  mov lr, r2
+1:
+  bx lr
+.size t2_hle_m4a_mixdown, .-t2_hle_m4a_mixdown
 #endif
 
 #define store_lookup_table(store_type)                                       ;\

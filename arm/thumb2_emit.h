@@ -58,6 +58,7 @@ void t2_hle_div(void);
 void t2_hle_divarm(void);
 #ifdef PD_M4A_HLE
 void t2_hle_m4a_inner(void);
+void t2_hle_m4a_mixdown(void);
 #endif
 
 #define armfn_gbaup_idle_arm       0
