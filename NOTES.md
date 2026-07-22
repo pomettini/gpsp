@@ -299,6 +299,21 @@ they may land near-native with frameskip.
   replaced the emitted site's incoming LR, so the handler returned into the
   dispatcher. The diagnostic call now saves/restores that incoming LR around
   the BL; normal builds were never affected.
+- Corrected RevB run completed: 4763 samples across approximately 39.0M
+  guest memory operations, no drops. IWRAM was 59.94% of traffic; its 0x3006
+  and 0x3007 4KB pages alone were 50.24%. Two adjacent EWRAM pages added
+  18.41%. The distribution was stable through chronological 500-sample
+  slices, so this is steady workload rather than boot-only decompression.
+- The PC cluster 0x030028E0-0x030030E0 is FireRed's `SoundMainRAM` buffer:
+  the game copies its m4a software mixer there at startup. This range accounts
+  for 33.80% of all sampled memory ops; the 8.99% PC-zero `store32-safe`
+  bucket is primarily its multi-store buffer clear (those safe calls do not
+  otherwise need an exact guest PC). The hot 0x03002C38 signed ROM loads are
+  PCM sample fetches. This is the first concentrated, potentially significant
+  active-work target found after the PSRAM wall.
+- `M4ADUMP=1` writes the guest's 32KB IWRAM to Data/iwram.bin after 300
+  updates, with no hot-path instrumentation. Next: capture/disassemble the
+  exact copied 2KB mixer and design a guarded native inner-loop fast path.
 
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.

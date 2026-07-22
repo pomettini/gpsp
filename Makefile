@@ -159,6 +159,13 @@ ifeq ($(DUMPJIT),1)
 UDEFS += -DPD_JIT_DUMP_DEVICE
 endif
 
+# make M4ADUMP=1: write the guest's 32KB IWRAM to Data/iwram.bin after
+# 300 updates. Used to capture runtime-copied m4a mixer code; no hot-path
+# instrumentation, so the emulator runs at normal speed before the write.
+ifeq ($(M4ADUMP),1)
+UDEFS += -DPD_M4A_DUMP
+endif
+
 # Default with the dynarec: memory ops call shared stub dispatchers instead
 # of inlining region dispatch at every site. COMPACTMEM=0 restores the
 # original per-site dispatch sequences.

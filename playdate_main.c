@@ -142,6 +142,11 @@ static u32 perf_guest_frames, perf_last_frame_counter;
 static u32 perf_emu_ms, perf_blit_ms, perf_aud_ms, perf_window_start_ms;
 static u32 perf_emu_max_ms;
 
+#if defined(PD_M4A_DUMP) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
+static u32 pd_m4a_dump_frames;
+static int pd_m4a_dumped;
+#endif
+
 #if defined(PD_MEM_PROFILE) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
 typedef struct
 {
@@ -382,6 +387,11 @@ static void start_emulation(void)
   perf_last_frame_counter = frame_counter;
   perf_window_start_ms = pd->system->getCurrentTimeMilliseconds();
   pd->system->logToConsole("gpsp: running %s", selected_rom);
+
+#if defined(PD_M4A_DUMP) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
+  pd_m4a_dump_frames = 0;
+  pd_m4a_dumped = 0;
+#endif
 
 #if defined(PD_MEM_PROFILE) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
   pd_memprof_reset();
@@ -690,6 +700,25 @@ static int update(void *userdata)
 #if defined(PD_MEM_PROFILE) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
   if (!pd_memprof_dumped && pd_playbench_is_finished())
     pd_memprof_dump();
+#endif
+
+#if defined(PD_M4A_DUMP) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
+  if (!pd_m4a_dumped && ++pd_m4a_dump_frames == 300)
+  {
+    extern u8 iwram[];
+    SDFile *fiw = pd->file->open("iwram.bin", kFileWrite);
+    pd_m4a_dumped = 1;
+    if (fiw)
+    {
+      pd->file->write(fiw, iwram, 0x8000);
+      pd->file->close(fiw);
+      pd->system->logToConsole("gpsp: dumped iwram.bin");
+    }
+    else
+    {
+      pd->system->logToConsole("gpsp: cannot write iwram.bin");
+    }
+  }
 #endif
 
 #ifdef PD_FRAME_DUMP
