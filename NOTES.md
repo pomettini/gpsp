@@ -294,7 +294,11 @@ they may land near-native with frameskip.
   diagnostic build is intentionally not an A/B performance result.
 - Assembly verification: the profile build has the expected countdown and
   recorder instructions; with the flag disabled, the backend `.text` is
-  byte-for-byte identical to the pre-profiler backend. Device run pending.
+  byte-for-byte identical to the pre-profiler backend. First device run hit
+  the watchdog at the initial sample: the dispatcher's BL to the recorder
+  replaced the emitted site's incoming LR, so the handler returned into the
+  dispatcher. The diagnostic call now saves/restores that incoming LR around
+  the BL; normal builds were never affected.
 
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.

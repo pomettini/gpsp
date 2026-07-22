@@ -653,7 +653,9 @@ defsymbl(t2_hle_divarm)
   movw r2, #PD_MEMPROF_PERIOD                                                ;\
   str r2, [reg_base, #(PD_MEMPROF_COUNT_REG * 4)]                             ;\
   movw r2, #(tblnum)                                                         ;\
+  push {lr}                                                                  ;\
   bl t2_memprof_sample                                                       ;\
+  pop {lr}                                                                   ;\
 91:
 #else
 #define memprof_tick(tblnum)
