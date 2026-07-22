@@ -324,6 +324,10 @@ they may land near-native with frameskip.
   skew), and falls back into the original guest instructions for unexpected
   output pointers or sample boundaries. It is not a shipping default until
   the RevB A/B and listening test pass.
+- The first device build engaged the signature guard, then watchdog-stalled
+  on its first scheduler crossing: the bridge's BLX had replaced the emitted
+  block's incoming LR. Preserve `{r2,lr}` across that call (also retaining
+  AAPCS stack alignment); the mixer helper itself was not the stalled loop.
 
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.
