@@ -370,6 +370,13 @@ they may land near-native with frameskip.
   4.4%. Both signature guards engaged and the full scripted run completed.
   This is the first combined result large enough to justify the broader
   compatibility sweep after one fresh profile confirms the next hotspot.
+- The post-sprite trace recorded 2620 samples / 21.5M guest memory operations
+  with no drops. The replaced 0x08006BF4-0x08006F04 routines contributed zero
+  samples, confirming the native dispatch. The largest steady residual bucket
+  is 408 intermediate block-store operations (15.6%), all targeting the IWRAM
+  stack around 0x03007D00. `STACKFAST=1` is the first generic follow-up: it
+  groups each Thumb PUSH into one native copy after a runtime IWRAM check and
+  retains the original per-word handler path for any other stack region.
 
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.

@@ -808,6 +808,21 @@ defsymbl(t2_hle_firered_thumb)
 .size t2_hle_firered_thumb, .-t2_hle_firered_thumb
 #endif
 
+#ifdef PD_IWRAM_STACK_FAST
+@ Collapse a guest Thumb PUSH into one native helper call. The helper returns
+@ nonzero only when the complete write lies in IWRAM; emitted code falls back
+@ to the ordinary per-word handlers on zero.
+defsymbl(t2_hle_iwram_push)
+  save_flags()
+  store_registers_thumb()
+  mov r0, reg_gpc
+  call_c_function_abs(pd_iwram_stack_push)
+  load_registers_thumb()
+  restore_flags()
+  bx lr
+.size t2_hle_iwram_push, .-t2_hle_iwram_push
+#endif
+
 #define store_lookup_table(store_type)                                       ;\
   .word ext_store_ignore                  /*   -1: ignore, for > 0x0F      */;\
   .word ext_store_ignore                  /* 0x00: BIOS, ignore            */;\

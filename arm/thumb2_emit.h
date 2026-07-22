@@ -63,6 +63,9 @@ void t2_hle_m4a_mixdown(void);
 #ifdef PD_FIRERED_SPRITE_HLE
 void t2_hle_firered_thumb(void);
 #endif
+#ifdef PD_IWRAM_STACK_FAST
+void t2_hle_iwram_push(void);
+#endif
 
 #define armfn_gbaup_idle_arm       0
 #define armfn_gbaup_idle_thumb     1
@@ -1804,9 +1807,8 @@ static void (*const t2_mem_dispatch_ptrs[9])(void) = {
 #define thumb_block_memory_final_pop_pc(access_type)                          \
   thumb_block_memory_##access_type()                                          \
 
-#define thumb_block_memory(access_type, pre_op, post_op, base_reg)            \
+#define thumb_block_memory_slow(access_type, pre_op, post_op, base_reg)       \
 {                                                                             \
-  thumb_decode_rlist();                                                       \
   u32 i;                                                                      \
   u32 offset = 0;                                                             \
                                                                               \
@@ -1837,6 +1839,47 @@ static void (*const t2_mem_dispatch_ptrs[9])(void) = {
   }                                                                           \
                                                                               \
   thumb_block_memory_extra_##post_op();                                       \
+}                                                                             \
+
+#ifdef PD_IWRAM_STACK_FAST
+#define thumb_push_extra_no       0U
+#define thumb_push_extra_up       0U
+#define thumb_push_extra_down     0U
+#define thumb_push_extra_pop_pc   0U
+#define thumb_push_extra_push_lr  0x100U
+
+#define thumb_block_memory_path_store(pre_op, post_op, base_reg)              \
+{                                                                             \
+  if ((base_reg) == REG_SP)                                                   \
+  {                                                                           \
+    u8 *stack_done;                                                           \
+    t2_load_imm32(reg_gpc, reg_list | thumb_push_extra_##post_op);            \
+    generate_function_call(t2_hle_iwram_push);                                \
+    t2_cbz(reg_rv, 2);                                                        \
+    stack_done = translation_ptr;                                             \
+    t2_b_w(translation_ptr, translation_ptr);                                 \
+    thumb_block_memory_slow(store, pre_op, post_op, base_reg);                \
+    t2_patch_branch(stack_done, translation_ptr);                             \
+  }                                                                           \
+  else                                                                        \
+  {                                                                           \
+    thumb_block_memory_slow(store, pre_op, post_op, base_reg);                \
+  }                                                                           \
+}
+
+#define thumb_block_memory_path_load(pre_op, post_op, base_reg)               \
+  thumb_block_memory_slow(load, pre_op, post_op, base_reg)
+#else
+#define thumb_block_memory_path_store(pre_op, post_op, base_reg)              \
+  thumb_block_memory_slow(store, pre_op, post_op, base_reg)
+#define thumb_block_memory_path_load(pre_op, post_op, base_reg)               \
+  thumb_block_memory_slow(load, pre_op, post_op, base_reg)
+#endif
+
+#define thumb_block_memory(access_type, pre_op, post_op, base_reg)            \
+{                                                                             \
+  thumb_decode_rlist();                                                       \
+  thumb_block_memory_path_##access_type(pre_op, post_op, base_reg);           \
 }                                                                             \
 
 /* --- Branches ---------------------------------------------------------------- */
