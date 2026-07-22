@@ -710,7 +710,8 @@ static int update(void *userdata)
     pd_m4a_dumped = 1;
     if (fiw)
     {
-      pd->file->write(fiw, iwram, 0x8000);
+      /* The first 32KB is the dynarec's SMC shadow; guest IWRAM follows. */
+      pd->file->write(fiw, iwram + 0x8000, 0x8000);
       pd->file->close(fiw);
       pd->system->logToConsole("gpsp: dumped iwram.bin");
     }
