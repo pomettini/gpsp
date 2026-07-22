@@ -1,17 +1,19 @@
 /* Native fast path for the hottest inner loop of FireRed's runtime-copied
  * m4a SoundMainRAM mixer. The translator enables this only when the exact
  * captured instruction sequence matches; unusual output pointers fall back
- * after the loop's two initial loads. Each call follows the dynarec's current
- * cycle budget and can overshoot it by at most one four-sample group. */
+ * after the loop's two initial loads. Looping PCM sample boundaries are
+ * wrapped in place; non-looping endings return to the original guest code.
+ * Each call follows the dynarec's current cycle budget and can overshoot it
+ * by at most one four-sample group. */
 
 #ifdef PD_M4A_HLE
 
 #include "common.h"
 
 #define M4A_INNER_PC       0x03002BECU
-#define M4A_INNER_BODY_OFF 0x00002BD4U
-#define M4A_INNER_BODY_LEN 132U
-#define M4A_INNER_FNV1A    0x678FE071U
+#define M4A_INNER_BODY_OFF 0x00002B6CU
+#define M4A_INNER_BODY_LEN 236U
+#define M4A_INNER_FNV1A    0xACB5F1E0U
 #define M4A_PCM_STRIDE     0x630U
 #define M4A_MAX_GROUPS     32U
 
@@ -104,22 +106,53 @@ u64 pd_m4a_hle_inner(u32 cycle_budget)
 
       if (step)
       {
+        u32 loop_length;
+
         r9 &= ~0x3F800000U;
         r2 -= step;
         cycles += 3; /* BIC, SUBS, BLE */
         if ((s32)r2 <= 0)
         {
-          reg[0] = r0;
-          reg[1] = r1;
-          reg[2] = r2;
-          reg[3] = r3;
-          reg[5] = r5;
-          reg[6] = r6;
-          reg[7] = r7;
-          reg[8] = r8;
-          reg[9] = r9;
-          next_pc = 0x03002B6CU;
-          return ((u64)cycles << 32) | next_pc;
+          u32 loop_offset;
+
+          loop_length = read_memory32(reg[REG_SP] + 24);
+          cycles += 5; /* LDR, CMP and BEQ */
+          if (loop_length == 0)
+          {
+            reg[0] = r0;
+            reg[1] = r1;
+            reg[2] = r2;
+            reg[3] = r3;
+            reg[5] = r5;
+            reg[6] = r6;
+            reg[7] = r7;
+            reg[8] = r8;
+            reg[9] = r9;
+            next_pc = 0x03002B90U;
+            return ((u64)cycles << 32) | next_pc;
+          }
+
+          r3 = read_memory32(reg[REG_SP] + 20);
+          loop_offset = 0U - r2;
+          cycles += 4; /* LDR and RSB */
+          do
+          {
+            r2 += loop_length;
+            cycles += 2; /* ADDS and BGT */
+            if ((s32)r2 > 0)
+              break;
+            loop_offset -= loop_length;
+            cycles += 2; /* SUB and B */
+          }
+          while (1);
+
+          r3 += loop_offset;
+          r0 = (u32)m4a_load_s8(r3);
+          r3++;
+          r1 = (u32)m4a_load_s8(r3);
+          r1 -= r0;
+          cycles += 7; /* two LDRSBs and SUB */
+          goto m4a_advance_output;
         }
 
         step--;
@@ -141,6 +174,7 @@ u64 pd_m4a_hle_inner(u32 cycle_budget)
         cycles += 4; /* second LDRSB and SUB */
       }
 
+m4a_advance_output:
       old_r5 = r5;
       r5 += 0x40000000U;
       cycles += 2; /* ADDS and BCC */

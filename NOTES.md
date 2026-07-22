@@ -337,6 +337,14 @@ they may land near-native with frameskip.
   lookup every 12 samples. It now consumes the dynarec's actual remaining
   cycle budget (maximum 128 samples), reducing those round trips while still
   limiting scheduler overshoot to one original four-sample mixer group.
+- Budget batching completed at 38.69 estimated fps / 25.85ms average: +2.9%
+  over the 37.59 fps baseline, with slow frames down from 3434 to 2958. The
+  final perf window reduced rendered-update emulation from roughly
+  30.3-30.9ms to 28.9ms while audio and blit stayed flat. This confirms the
+  native loop is useful, but the result is not yet large enough to enable by
+  default. The next revision also handles the original looping-sample wrap
+  at 0x03002B6C in place; zero-length/non-looping endings still resume the
+  guest shutdown path at 0x03002B90.
 
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.
