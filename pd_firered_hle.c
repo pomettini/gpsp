@@ -1,7 +1,8 @@
-/* Native versions of four pure-memory routines and the dummy-OAM fill tail in
- * FireRed US 1.0's sprite pipeline. Entry blocks are enabled only when their
- * exact ROM bytes match. Callbacks and sprite submission remain in guest code.
- * Layout and behavior correspond to pret/pokefirered. */
+/* Native versions of four pure-memory routines in FireRed US 1.0's sprite
+ * pipeline. Entry blocks are enabled only when their exact ROM bytes match.
+ * Callbacks and OAM submission remain in guest code. Layout and behavior
+ * correspond to UpdateOamCoords, BuildSpritePriorities, SortSprites and
+ * CopyMatricesToOamBuffer in pret/pokefirered. */
 
 #ifdef PD_FIRERED_SPRITE_HLE
 
@@ -11,8 +12,6 @@
 #define FR_PRIORITIES_PC     0x08006CB8U
 #define FR_SORT_PC           0x08006CF8U
 #define FR_MATRICES_PC       0x08006EB8U
-#define FR_OAM_FILL_PC        0x08006F40U
-#define FR_OAM_FILL_NEXT_PC   0x08006F70U
 
 #define FR_SPRITES_OFF       0x0002063CU
 #define FR_PRIORITIES_OFF    0x00021780U
@@ -20,12 +19,7 @@
 #define FR_COORD_X_OFF       0x00021BC8U
 #define FR_COORD_Y_OFF       0x00021BCAU
 #define FR_MATRICES_OFF      0x00021BCCU
-#define FR_OAM_LIMIT_OFF      0x00021B44U
 #define FR_OAM_BASE_OFF      0x000030F0U
-
-#define FR_DUMMY_OAM_ADDR     0x08231CE4U
-#define FR_DUMMY_OAM_LO       0x013000A0U
-#define FR_DUMMY_OAM_HI       0x00000C00U
 
 #define FR_SPRITE_COUNT      64U
 #define FR_SPRITE_SIZE       68U
@@ -54,17 +48,11 @@ int pd_firered_hle_matches(u32 pc)
       length = 448; expected = 0x75F48025U; break;
     case FR_MATRICES_PC:
       length = 76;  expected = 0x09E9CB87U; break;
-    case FR_OAM_FILL_PC:
-      length = 76;  expected = 0x3EAF1EA6U; break;
     default:
       return 0;
   }
 
   if (fr_hash(pc, length) != expected)
-    return 0;
-  if (pc == FR_OAM_FILL_PC &&
-      (read_memory32(FR_DUMMY_OAM_ADDR) != FR_DUMMY_OAM_LO ||
-       read_memory32(FR_DUMMY_OAM_ADDR + 4) != FR_DUMMY_OAM_HI))
     return 0;
   pd_firered_hle_matched = 1;
   return 1;
@@ -184,29 +172,10 @@ static void fr_copy_matrices(void)
     }
 }
 
-static u32 fr_fill_oam(void)
-{
-  u32 sp = reg[REG_SP] & 0x7FFFU;
-  u32 index = iwram[0x8000 + sp];
-  u32 limit = ewram[FR_OAM_LIMIT_OFF];
-  u32 count = 0;
-
-  while (index < limit)
-  {
-    u32 dst = FR_OAM_BASE_OFF + 0x38U + index * 8U;
-    address32(iwram + 0x8000, dst & 0x7FFFU) = FR_DUMMY_OAM_LO;
-    address32(iwram + 0x8000, (dst + 4U) & 0x7FFFU) = FR_DUMMY_OAM_HI;
-    index++;
-    count++;
-  }
-  iwram[0x8000 + sp] = (u8)index;
-  return count;
-}
-
 /* AAPCS u64 result: guest return PC in r0, approximate original cycles in r1. */
 u64 pd_firered_hle(u32 pc)
 {
-  u32 cycles, next_pc = reg[REG_LR];
+  u32 cycles;
   switch (pc)
   {
     case FR_UPDATE_COORDS_PC:
@@ -224,15 +193,11 @@ u64 pd_firered_hle(u32 pc)
       fr_copy_matrices();
       cycles = 1280;
       break;
-    case FR_OAM_FILL_PC:
-      cycles = 64 + fr_fill_oam() * 32;
-      next_pc = FR_OAM_FILL_NEXT_PC;
-      break;
     default:
       cycles = 0;
       break;
   }
-  return ((u64)cycles << 32) | next_pc;
+  return ((u64)cycles << 32) | reg[REG_LR];
 }
 
 #endif /* PD_FIRERED_SPRITE_HLE */

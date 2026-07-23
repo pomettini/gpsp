@@ -3349,8 +3349,7 @@ bool translate_block_thumb(u32 pc, bool ram_region)
     extern int pd_firered_hle_matches(u32 pc);
     if (!ram_region &&
         (pc == 0x08006BF4U || pc == 0x08006CB8U ||
-         pc == 0x08006CF8U || pc == 0x08006EB8U ||
-         pc == 0x08006F40U) &&
+         pc == 0x08006CF8U || pc == 0x08006EB8U) &&
         pd_firered_hle_matches(pc))
     {
       t2_load_imm32(reg_gpc, pc);

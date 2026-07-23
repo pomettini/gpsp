@@ -392,6 +392,10 @@ they may land near-native with frameskip.
   helpers using them. Its call wrapper already preserves cached guest r0 and
   AAPCS preserves the other five; removing the twelve redundant PSRAM accesses
   per dispatch is the controlled follow-up before rejecting the OAM fill.
+- The trimmed-bridge OAM run remained flat at 40.07 fps / 24.96ms. The OAM
+  helper is therefore dropped; its extra dispatch costs at least as much as
+  its tight fill saves. The lighter bridge remains for an isolated run with
+  the original four native sprite passes.
 
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.
