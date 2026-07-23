@@ -377,6 +377,15 @@ they may land near-native with frameskip.
   stack around 0x03007D00. `STACKFAST=1` is the first generic follow-up: it
   groups each Thumb PUSH into one native copy after a runtime IWRAM check and
   retains the original per-word handler path for any other stack region.
+- The clean `STACKFAST=1` run regressed from 40.78 fps / 24.52ms to 39.57
+  fps / 25.27ms. Its one C bridge per PUSH costs more than the grouped stores
+  save, despite removing the sampled intermediate-store bucket. Dropped from
+  the active build; the opt-in implementation remains for reference.
+- The next guarded FireRed block is the dummy-OAM tail at 0x08006F40. It is
+  189 samples (7.2%) of the post-sprite trace and performs only a repeated
+  eight-byte fill from the current OAM index to `gOamLimit`. The native helper
+  validates both code and dummy-data signatures, fills the IWRAM buffer, then
+  resumes at the original function epilogue; sprite submission stays guest.
 
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.
