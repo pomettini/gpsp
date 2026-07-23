@@ -397,14 +397,29 @@ they may land near-native with frameskip.
   its tight fill saves. The lighter bridge remains for an isolated run with
   the original four native sprite passes.
 - A manual wild encounter exposed the new priority: battle entry visibly
-  falls to roughly 11-15 fps. The matching perf windows show emulation rising
-  from ~22ms to 36.9ms and then 55.7ms while `romtx` grows 1080 -> 1409 ->
-  1601KB, with `ramflush=0`; after compilation plateaus, the same session
-  recovers to 38-40 fps. This is a cold-JIT storm, not sustained battle PPU
-  cost or cache churn. `LAZYLINK=1` replaces recursive call-graph translation
-  with first-use external-branch gates. Each gate patches its own nearby B.W
-  to the target after one lookup, preserving direct steady-state links while
-  compiling only paths the game actually executes.
+  falls to roughly 11-15 fps. The first matching windows correlated the drop
+  with `romtx` growth, so `LAZYLINK=1` replaced recursive call-graph
+  translation with first-use self-patching gates. The controlled tall-grass
+  run disproved translation as the sustained cause: after `romtx` stopped at
+  ~1.25MB, three consecutive windows remained at 17.6, 15.9 and 16.0 fps
+  (54-60ms emulation). Audio and blit stayed flat and skipped frames were
+  almost as slow as rendered frames.
+- The focused memory-PC trace (3055 samples / 25.0M operations) identified
+  FireRed's copied IRQ dispatcher at 0x03003580-0x030036D0 plus BIOS IRQ
+  entries 0x24/0x2C/0x38 as the battle-only delta. Battle scanline effects
+  enable HBlank IRQs, repeatedly paying the BIOS wrapper, ARM dispatcher and
+  generic Thumb HBlank wrapper. `IRQFAST=1` recognizes the exact FireRed US
+  RAM/ROM signatures, acknowledges HBlank natively and enters the game's
+  dynamic scanline callback directly; callback code and effects remain guest.
+- Same-script IRQFAST run (2868 updates, no MEMPROFILE): 83.084s / 34.52 fps
+  overall versus 109.612s / 26.17 fps for the focused diagnostic. More
+  importantly, its sustained battle windows reached 26.8-29.0 fps versus
+  15.9-17.6 with MEMPROFILE; known profiler overhead is only ~5-6%, so most
+  of that gap is the IRQ bridge (a clean no-profiler control can refine the
+  exact percentage). The test completed and the save stayed byte-identical.
+  Remaining battle split: skipped updates ~29ms, rendered updates ~52ms, so
+  callback code plus battle PPU rendering are next after a manual visual-
+  correctness check.
 
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.

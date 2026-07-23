@@ -44,6 +44,7 @@ SRC = playdate_main.c \
       pd_bios_hle.c \
       pd_m4a_hle.c \
       pd_firered_hle.c \
+      pd_firered_irq.c \
       pd_iwram_stack.c \
       pd_dynarec_hoststub.c
 
@@ -74,6 +75,7 @@ SCHEDBATCH2 ?= $(SCHEDBATCH)
 COMPACTMEM ?= $(DYNAREC)
 M4AFAST ?= 0
 SPRITEFAST ?= 0
+IRQFAST ?= 0
 STACKFAST ?= 0
 LAZYLINK ?= 0
 
@@ -202,6 +204,17 @@ $(error SPRITEFAST=1 requires DYNAREC=1)
 endif
 UDEFS += -DPD_FIRERED_SPRITE_HLE
 UADEFS += -DPD_FIRERED_SPRITE_HLE
+endif
+
+# make IRQFAST=1: signature-guarded FireRed HBlank interrupt bridge.  The
+# dynamic scanline callback still runs as guest code; only fixed wrappers are
+# native.  Intended for battle scenes, which enable HBlank IRQs every line.
+ifeq ($(IRQFAST),1)
+ifneq ($(DYNAREC),1)
+$(error IRQFAST=1 requires DYNAREC=1)
+endif
+UDEFS += -DPD_FIRERED_IRQ_HLE
+UADEFS += -DPD_FIRERED_IRQ_HLE
 endif
 
 # make STACKFAST=1: collapse each Thumb PUSH to one native IWRAM copy after

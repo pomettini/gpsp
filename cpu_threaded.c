@@ -22,6 +22,9 @@
 // - block memory needs psr swapping and user mode reg swapping
 
 #include "common.h"
+#ifdef PD_FIRERED_IRQ_HLE
+#include "pd_firered_irq.h"
+#endif
 #if defined(VITA)
 #include <psp2/kernel/sysmem.h>
 #include <stdio.h>
@@ -3412,6 +3415,17 @@ bool translate_block_thumb(u32 pc, bool ram_region)
 
   pd_lit_reset();
   generate_block_prologue();
+
+#ifdef PD_FIRERED_IRQ_HLE
+  if (!ram_region && pc == PD_FIRERED_IRQ_RETURN_PC)
+  {
+    generate_function_call(t2_hle_firered_irq_return);
+    pd_lit_end_flush();
+    align_translation_ptr();
+    rom_translation_ptr = translation_ptr;
+    return true;
+  }
+#endif
 
 #ifdef PD_FIRERED_SPRITE_HLE
   {

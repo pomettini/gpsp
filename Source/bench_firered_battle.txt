@@ -1,0 +1,70 @@
+# FireRed wild-battle profile. The save starts in tall grass.
+# UP maps to GBA Start in the Playdate shell; the opening sequence resumes
+# the saved game, then short left/right walks trigger an encounter. Inputs
+# become harmless once the battle transition starts, and the final wait keeps
+# sampling the transition and early battle scene.
+wait 400
+hold UP 6
+wait 120
+hold UP 6
+wait 120
+hold UP 6
+wait 120
+hold UP 6
+wait 120
+hold A 6
+wait 120
+hold A 6
+wait 120
+hold A 6
+wait 240
+hold LEFT 30
+wait 4
+hold RIGHT 30
+wait 4
+hold LEFT 30
+wait 4
+hold RIGHT 30
+wait 4
+hold LEFT 30
+wait 4
+hold RIGHT 30
+wait 4
+hold LEFT 30
+wait 4
+hold RIGHT 30
+wait 4
+hold LEFT 30
+wait 4
+hold RIGHT 30
+wait 4
+hold LEFT 30
+wait 4
+hold RIGHT 30
+wait 4
+hold LEFT 30
+wait 4
+hold RIGHT 30
+wait 4
+hold LEFT 30
+wait 4
+hold RIGHT 30
+wait 4
+hold LEFT 30
+wait 4
+hold RIGHT 30
+wait 4
+hold LEFT 30
+wait 4
+hold RIGHT 30
+wait 4
+hold LEFT 30
+wait 4
+hold RIGHT 30
+wait 4
+hold LEFT 30
+wait 4
+hold RIGHT 30
+wait 4
+wait 650
+stop

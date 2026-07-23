@@ -827,6 +827,31 @@ defsymbl(t2_hle_firered_thumb)
 .size t2_hle_firered_thumb, .-t2_hle_firered_thumb
 #endif
 
+#ifdef PD_FIRERED_IRQ_HLE
+@ Return from a directly-dispatched FireRed HBlank callback.  C restores the
+@ interrupted register file and CPU mode; dispatch resumes at that exact PC.
+defsymbl(t2_hle_firered_irq_return)
+  save_flags()
+  store_registers_thumb()
+  call_c_function(pd_firered_irq_return)
+  ldr r1, [reg_base, #REG_CPSR]
+  ldr r0, [reg_base, #REG_PC]
+  tst r1, #0x20
+  bne 1f
+  call_c_function(block_lookup_address_arm)
+  load_registers_arm()
+  extract_flags()
+  orr r0, r0, #1
+  bx r0
+1:
+  call_c_function(block_lookup_address_thumb)
+  load_registers_thumb()
+  extract_flags()
+  orr r0, r0, #1
+  bx r0
+.size t2_hle_firered_irq_return, .-t2_hle_firered_irq_return
+#endif
+
 #ifdef PD_IWRAM_STACK_FAST
 @ Collapse a guest Thumb PUSH into one native helper call. The helper returns
 @ nonzero only when the complete write lies in IWRAM; emitted code falls back

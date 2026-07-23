@@ -20,6 +20,9 @@
 extern "C" {
   #include "common.h"
   #include "cpu_instrument.h"
+#ifdef PD_FIRERED_IRQ_HLE
+  #include "pd_firered_irq.h"
+#endif
 }
 
 const u8 bit_count[256] =
@@ -1425,6 +1428,11 @@ u32 check_and_raise_interrupts()
   // Check any IRQ flag pending, IME and CPSR-IRQ enabled
   if (cpu_has_interrupt())
   {
+#ifdef PD_FIRERED_IRQ_HLE
+    int pd_irq_hle = pd_firered_irq_try_enter();
+    if (pd_irq_hle)
+      return pd_irq_hle == 1;
+#endif
     // Value after the FIQ returns, should be improved
     reg[REG_BUS_VALUE] = 0xe55ec002;
 

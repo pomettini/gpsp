@@ -150,6 +150,10 @@ static int pd_m4a_hle_logged;
 extern u32 pd_firered_hle_matched;
 static int pd_firered_hle_logged;
 #endif
+#ifdef PD_FIRERED_IRQ_HLE
+extern u32 pd_firered_irq_matched;
+static int pd_firered_irq_logged;
+#endif
 #ifdef PD_IWRAM_STACK_FAST
 extern u32 pd_iwram_stack_fast_active;
 static int pd_iwram_stack_fast_logged;
@@ -409,6 +413,10 @@ static void start_emulation(void)
   pd_firered_hle_matched = 0;
   pd_firered_hle_logged = 0;
 #endif
+#ifdef PD_FIRERED_IRQ_HLE
+  pd_firered_irq_matched = 0;
+  pd_firered_irq_logged = 0;
+#endif
 #ifdef PD_IWRAM_STACK_FAST
   pd_iwram_stack_fast_active = 0;
   pd_iwram_stack_fast_logged = 0;
@@ -647,6 +655,13 @@ static int update(void *userdata)
   {
     pd_firered_hle_logged = 1;
     pd->system->logToConsole("gpsp: FireRed sprite fast path active");
+  }
+#endif
+#ifdef PD_FIRERED_IRQ_HLE
+  if (pd_firered_irq_matched && !pd_firered_irq_logged)
+  {
+    pd_firered_irq_logged = 1;
+    pd->system->logToConsole("gpsp: FireRed HBlank fast path active");
   }
 #endif
 #ifdef PD_IWRAM_STACK_FAST
