@@ -75,6 +75,7 @@ COMPACTMEM ?= $(DYNAREC)
 M4AFAST ?= 0
 SPRITEFAST ?= 0
 STACKFAST ?= 0
+LAZYLINK ?= 0
 
 # make BENCH=1: scripted-input benchmark build (pd-playbench). The script
 # comes from /Shared/Emulation/gba/bench_script.txt if present, else the
@@ -145,6 +146,17 @@ endif
 # (A/B experiment; cleared on translation-cache flushes).
 ifeq ($(LOOKUPCACHE),1)
 UDEFS += -DPD_LOOKUP_CACHE
+endif
+
+# make LAZYLINK=1: translate external direct-branch targets on first use
+# instead of recursively compiling the reachable call graph. Each cold gate
+# patches itself to the translated target, so steady-state branches stay direct.
+ifeq ($(LAZYLINK),1)
+ifneq ($(DYNAREC),1)
+$(error LAZYLINK=1 requires DYNAREC=1)
+endif
+UDEFS += -DPD_LAZY_LINK
+UADEFS += -DPD_LAZY_LINK
 endif
 
 # make FRAMEDUMP=1: write the raw RGB565 guest frame to Data/frame.bin

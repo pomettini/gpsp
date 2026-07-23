@@ -45,6 +45,10 @@ void arm_indirect_branch_arm(u32 address);
 void arm_indirect_branch_thumb(u32 address);
 void arm_indirect_branch_dual_arm(u32 address);
 void arm_indirect_branch_dual_thumb(u32 address);
+#ifdef PD_LAZY_LINK
+void t2_lazy_link_arm(void);
+void t2_lazy_link_thumb(void);
+#endif
 
 void execute_store_cpsr(u32 new_cpsr);
 u32 execute_store_cpsr_body(u32 _cpsr, u32 store_mask, u32 address);

@@ -44,12 +44,23 @@ void arm_indirect_branch_arm(void) {}
 void arm_indirect_branch_thumb(void) {}
 void arm_indirect_branch_dual_arm(void) {}
 void arm_indirect_branch_dual_thumb(void) {}
+#ifdef PD_LAZY_LINK
+void t2_lazy_link_arm(void) {}
+void t2_lazy_link_thumb(void) {}
+#endif
 void execute_store_cpsr(void) {}
 void execute_spsr_restore(void) {}
 void execute_swi_arm(void) {}
 void execute_swi_thumb(void) {}
 void t2_hle_div(void) {}
 void t2_hle_divarm(void) {}
+#ifdef PD_M4A_HLE
+void t2_hle_m4a_inner(void) {}
+void t2_hle_m4a_mixdown(void) {}
+#endif
+#ifdef PD_FIRERED_SPRITE_HLE
+void t2_hle_firered_thumb(void) {}
+#endif
 void t2_hle_bios_arm(void) {}
 void t2_hle_bios_thumb(void) {}
 void t2_mem_dispatch_0(void) {} void t2_mem_dispatch_1(void) {}

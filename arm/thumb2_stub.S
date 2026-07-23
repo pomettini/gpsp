@@ -334,6 +334,25 @@ defsymbl(arm_indirect_branch_dual_thumb)
   bx r0
 .size arm_indirect_branch_dual_thumb, .-arm_indirect_branch_dual_thumb
 
+#ifdef PD_LAZY_LINK
+@ First-use direct-branch gates. r0 is the guest target and r1 is the nearby
+@ unconditional gate to patch. The C helper translates only that target,
+@ patches the gate, and performs the one required whole-I-cache sync.
+defsymbl(t2_lazy_link_arm)
+  save_flags()
+  call_c_function(block_lookup_patch_arm)
+  restore_flags()
+  orr r0, r0, #1
+  bx r0
+
+defsymbl(t2_lazy_link_thumb)
+  save_flags()
+  call_c_function(block_lookup_patch_thumb)
+  restore_flags()
+  orr r0, r0, #1
+  bx r0
+#endif
+
 @ Update the cpsr.
 
 @ Input:

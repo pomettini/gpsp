@@ -61,6 +61,9 @@ u32 ewram_code_max =  0U;
 
 #define INITIAL_ROM_WATERMARK   16   // To avoid NULL aliasing
 u32 rom_cache_watermark = INITIAL_ROM_WATERMARK;
+#ifdef PD_LAZY_LINK
+static u32 translation_cache_generation;
+#endif
 
 u8 *bios_swi_entrypoint = NULL;
 
@@ -250,6 +253,22 @@ typedef struct
 #define pd_lit_reset()
 #define pd_lit_hook()
 #define pd_lit_end_flush()
+#endif
+
+#ifdef PD_LAZY_LINK
+/* Each external direct branch initially targets a nearby gate. The first
+ * pass falls through to the lookup stub; that stub rewrites the gate's B.W
+ * to the translated target. Keeping the source branch aimed at its nearby
+ * gate also avoids the +/-1MB range limit of conditional B.W instructions. */
+#define pd_generate_lazy_gate(type, target, source)                           \
+{                                                                             \
+  u8 *_pd_gate = translation_ptr;                                             \
+  t2_b_w(_pd_gate, _pd_gate + 4);                                             \
+  generate_load_pc(reg_a0, (target));                                         \
+  t2_load_imm32(reg_a1, (u32)(uintptr_t)_pd_gate);                            \
+  generate_function_call(t2_lazy_link_##type);                               \
+  generate_branch_patch_unconditional((source), _pd_gate);                   \
+}
 #endif
 
 /* Cache invalidation */
@@ -2773,6 +2792,41 @@ u8 function_cc *block_lookup_address_thumb(u32 pc)
   return NULL;
 }
 
+#ifdef PD_LAZY_LINK
+/* Resolve and permanently rewrite a first-use gate. Translation and the gate
+ * store are covered by one whole-cache sync on Playdate. If translation had
+ * to flush the ROM cache, the calling gate no longer exists and is not
+ * patched; execution can still continue at the newly translated target. */
+#define block_lookup_patch_builder(type)                                      \
+u8 function_cc *block_lookup_patch_##type(u32 pc, u8 *gate)                  \
+{                                                                             \
+  unsigned i;                                                                 \
+  u32 generation = translation_cache_generation;                             \
+  for (i = 0; i < 4; i++)                                                     \
+  {                                                                           \
+    u8 *ret = block_lookup_translate_##type(pc);                              \
+    if (ret)                                                                  \
+    {                                                                         \
+      int emitted = last_rom_translation_ptr < rom_translation_ptr ||        \
+                    last_ram_translation_ptr < ram_translation_ptr;           \
+      if (ret != (u8 *)(~0) && generation == translation_cache_generation)    \
+        t2_patch_branch(gate, ret);                                           \
+      if (emitted)                                                            \
+        translate_icache_sync();                                              \
+      else if (generation == translation_cache_generation)                    \
+        platform_cache_sync(gate, gate + 4);                                  \
+      return ret;                                                             \
+    }                                                                         \
+  }                                                                           \
+  printf("bad lazy jump %x (%x)\n", pc, reg[REG_PC]);                        \
+  fflush(stdout);                                                             \
+  return NULL;                                                                \
+}
+
+block_lookup_patch_builder(arm);
+block_lookup_patch_builder(thumb);
+#endif
+
 
 // Potential exit point: If the rd field is pc for instructions is 0x0F,
 // the instruction is b/bl/bx, or the instruction is ldm with PC in the
@@ -3280,6 +3334,19 @@ bool translate_block_arm(u32 pc, bool ram_region)
     }
   }
 
+#ifdef PD_LAZY_LINK
+  for(i = 0; i < external_block_exit_position; i++)
+  {
+    branch_target = external_block_exits[i].branch_target;
+    if(branch_target == 0x00000008)
+      generate_branch_patch_unconditional(
+        external_block_exits[i].branch_source, bios_swi_entrypoint);
+    else
+      pd_generate_lazy_gate(arm, branch_target,
+                            external_block_exits[i].branch_source);
+  }
+#endif
+
   pd_lit_end_flush();
   align_translation_ptr();
   if (ram_region)
@@ -3287,6 +3354,7 @@ bool translate_block_arm(u32 pc, bool ram_region)
   else
     rom_translation_ptr = translation_ptr;
 
+#ifndef PD_LAZY_LINK
   for(i = 0; i < external_block_exit_position; i++)
   {
     branch_target = external_block_exits[i].branch_target;
@@ -3299,6 +3367,7 @@ bool translate_block_arm(u32 pc, bool ram_region)
     generate_branch_patch_unconditional(
       external_block_exits[i].branch_source, translation_target);
   }
+#endif
   return true;
 }
 
@@ -3460,6 +3529,19 @@ bool translate_block_thumb(u32 pc, bool ram_region)
     }
   }
 
+#ifdef PD_LAZY_LINK
+  for(i = 0; i < external_block_exit_position; i++)
+  {
+    branch_target = external_block_exits[i].branch_target;
+    if(branch_target == 0x00000008)
+      generate_branch_patch_unconditional(
+        external_block_exits[i].branch_source, bios_swi_entrypoint);
+    else
+      pd_generate_lazy_gate(thumb, branch_target,
+                            external_block_exits[i].branch_source);
+  }
+#endif
+
   pd_lit_end_flush();
   align_translation_ptr();
   if (ram_region)
@@ -3467,6 +3549,7 @@ bool translate_block_thumb(u32 pc, bool ram_region)
   else
     rom_translation_ptr = translation_ptr;
 
+#ifndef PD_LAZY_LINK
   for(i = 0; i < external_block_exit_position; i++)
   {
     branch_target = external_block_exits[i].branch_target;
@@ -3479,6 +3562,7 @@ bool translate_block_thumb(u32 pc, bool ram_region)
     generate_branch_patch_unconditional(
       external_block_exits[i].branch_source, translation_target);
   }
+#endif
   return true;
 }
 
@@ -3496,6 +3580,9 @@ void flush_translation_cache_ram(void)
 {
   /* Flushes RAM caches avoiding doing too much work (ie. wiping unused memory) */
   flush_ram_count++;
+#ifdef PD_LAZY_LINK
+  translation_cache_generation++;
+#endif
 #ifdef PD_LOOKUP_CACHE
   pd_lookup_cache_clear();
 #endif
@@ -3536,6 +3623,9 @@ void flush_translation_cache_ram(void)
 void flush_translation_cache_rom(void)
 {
   /* We flush the generated code except for everything below the watermark. */
+#ifdef PD_LAZY_LINK
+  translation_cache_generation++;
+#endif
   last_rom_translation_ptr = &rom_translation_cache[rom_cache_watermark];
   rom_translation_ptr      = &rom_translation_cache[rom_cache_watermark];
 
@@ -3548,6 +3638,9 @@ void flush_translation_cache_rom(void)
 void init_dynarec_caches(void)
 {
   /* Initialize caches so that we can start initalizing the emitter. */
+#ifdef PD_LAZY_LINK
+  translation_cache_generation = 0;
+#endif
   rom_translation_ptr = last_rom_translation_ptr = &rom_translation_cache[0];
   memset(rom_branch_hash, 0, sizeof(rom_branch_hash));
 

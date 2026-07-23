@@ -986,6 +986,9 @@ int eventHandler(PlaydateAPI *playdate, PDSystemEvent event, uint32_t arg)
       rebuild_menu(1);
 
       pd->system->logToConsole("gpsp: Playdate build " __DATE__ " " __TIME__);
+#ifdef PD_LAZY_LINK
+      pd->system->logToConsole("gpsp: lazy direct links active");
+#endif
 #ifdef HAVE_DYNAREC
       /* Written to a file so it survives crashes: where did the loader put
        * the caches this boot? (OS 3.1.0 vs 3.0.6 placement question.) */

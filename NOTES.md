@@ -396,6 +396,15 @@ they may land near-native with frameskip.
   helper is therefore dropped; its extra dispatch costs at least as much as
   its tight fill saves. The lighter bridge remains for an isolated run with
   the original four native sprite passes.
+- A manual wild encounter exposed the new priority: battle entry visibly
+  falls to roughly 11-15 fps. The matching perf windows show emulation rising
+  from ~22ms to 36.9ms and then 55.7ms while `romtx` grows 1080 -> 1409 ->
+  1601KB, with `ramflush=0`; after compilation plateaus, the same session
+  recovers to 38-40 fps. This is a cold-JIT storm, not sustained battle PPU
+  cost or cache churn. `LAZYLINK=1` replaces recursive call-graph translation
+  with first-use external-branch gates. Each gate patches its own nearby B.W
+  to the target after one lookup, preserving direct steady-state links while
+  compiling only paths the game actually executes.
 
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.
