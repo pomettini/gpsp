@@ -16,13 +16,13 @@
 
 #define FR_INTR_MAIN_OFF       0x00003580U
 #define FR_INTR_TABLE_OFF      0x00003540U
-#define FR_HBLANK_SLOT_OFF     (FR_INTR_TABLE_OFF + 4U)
+#define FR_HBLANK_SLOT_OFF     (FR_INTR_TABLE_OFF + 12U)
 #define FR_MAIN_OFF            0x000030F0U
-#define FR_HBLANK_CB_OFF       (FR_MAIN_OFF + 24U)
+#define FR_HBLANK_CB_OFF       (FR_MAIN_OFF + 16U)
 #define FR_INTR_CHECK_OFF      (FR_MAIN_OFF + 28U)
 #define FR_BIOS_INTR_CHECK_OFF 0x00007FF8U
 
-#define FR_HBLANK_WRAPPER      0x08000845U
+#define FR_HBLANK_WRAPPER      0x080007DDU
 
 typedef struct
 {
@@ -53,8 +53,8 @@ static int fr_irq_signatures_match(void)
       readaddress32(ram, FR_HBLANK_SLOT_OFF) != FR_HBLANK_WRAPPER)
     return 0;
 
-  if (read_memory32(0x08000844U) != 0x4C09B510U ||
-      read_memory32(0x08000864U) != 0xBC01BC10U)
+  if (read_memory32(0x080007DCU) != 0x4C09B510U ||
+      read_memory32(0x080007FCU) != 0xBC01BC10U)
     return 0;
 
   pd_firered_irq_matched = 1;
