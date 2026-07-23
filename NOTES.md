@@ -386,6 +386,12 @@ they may land near-native with frameskip.
   eight-byte fill from the current OAM index to `gOamLimit`. The native helper
   validates both code and dummy-data signatures, fills the IWRAM buffer, then
   resumes at the original function epilogue; sprite submission stays guest.
+- The first OAM-tail run regressed from 40.78 fps / 24.52ms to 40.18 fps /
+  24.89ms. The shared sprite bridge was still spilling and reloading all six
+  cached Thumb guest registers around every helper despite none of these
+  helpers using them. Its call wrapper already preserves cached guest r0 and
+  AAPCS preserves the other five; removing the twelve redundant PSRAM accesses
+  per dispatch is the controlled follow-up before rejecting the OAM fill.
 
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.
