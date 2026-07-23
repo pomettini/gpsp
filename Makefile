@@ -269,6 +269,12 @@ ifeq ($(PPUSTATS),1)
 UDEFS += -DPD_PPU_STATS
 endif
 
+# make AUTOSKIPBURST=1: after an over-budget rendered update, let auto mode
+# use its full three-frame skip allowance before rendering again. A/B only.
+ifeq ($(AUTOSKIPBURST),1)
+UDEFS += -DPD_AUTO_SKIP_BURST
+endif
+
 # make INLINEMEM=1: inline load fastpaths in emitted code (A/B experiment).
 ifeq ($(INLINEMEM),1)
 UDEFS += -DPD_INLINE_MEM

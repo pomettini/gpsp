@@ -647,15 +647,25 @@ static void perf_flush(u32 now)
 static int decide_skip(u32 last_update_ms)
 {
   static int skip_run;
+#ifdef PD_AUTO_SKIP_BURST
+  static int skip_remaining;
+  static int previous_was_skip;
+#endif
 
   if (frameskip_mode == 1) /* off */
   {
     skip_run = 0;
+#ifdef PD_AUTO_SKIP_BURST
+    skip_remaining = previous_was_skip = 0;
+#endif
     return 0;
   }
 
   if (frameskip_mode >= 2) /* fixed 1..3 */
   {
+#ifdef PD_AUTO_SKIP_BURST
+    skip_remaining = previous_was_skip = 0;
+#endif
     int n = frameskip_mode - 1;
     if (skip_run < n)
     {
@@ -666,6 +676,23 @@ static int decide_skip(u32 last_update_ms)
     return 0;
   }
 
+#ifdef PD_AUTO_SKIP_BURST
+  /* A cheap skipped update must not immediately cancel recovery from the
+   * preceding expensive render. Use the existing cap of three consecutive
+   * skips, then force a fresh frame to the display. */
+  if (!previous_was_skip && last_update_ms > 20)
+    skip_remaining = 3;
+  if (skip_remaining > 0)
+  {
+    skip_remaining--;
+    previous_was_skip = 1;
+    skip_run++;
+    return 1;
+  }
+  previous_was_skip = 0;
+  skip_run = 0;
+  return 0;
+#else
   /* auto: skip while the previous update ran over the 20ms budget,
    * capped at 3 consecutive skips so the screen never freezes. */
   if (last_update_ms > 20 && skip_run < 3)
@@ -675,6 +702,7 @@ static int decide_skip(u32 last_update_ms)
   }
   skip_run = 0;
   return 0;
+#endif
 }
 
 static int update(void *userdata)
