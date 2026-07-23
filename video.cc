@@ -24,6 +24,15 @@ extern "C" {
 
 u16* gba_screen_pixels = NULL;
 
+#ifdef PD_PPU_STATS
+u32 pd_ppu_stat_lines;
+u32 pd_ppu_stat_modes[8];
+u32 pd_ppu_stat_windows[8];
+u32 pd_ppu_stat_effects[4];
+u32 pd_ppu_stat_layers[9];
+u32 pd_ppu_stat_oam_orders;
+#endif
+
 #define get_screen_pixels()   gba_screen_pixels
 #define get_screen_pitch()    GBA_SCREEN_PITCH
 
@@ -2354,15 +2363,28 @@ void update_scanline(void)
   if(skip_next_frame)
     return;
 
+#ifdef PD_PPU_STATS
+  pd_ppu_stat_lines++;
+  pd_ppu_stat_modes[video_mode]++;
+  pd_ppu_stat_windows[(dispcnt >> 13) & 7]++;
+  pd_ppu_stat_effects[(read_ioreg(REG_BLDCNT) >> 6) & 3]++;
+#endif
+
   // If OAM has been modified since the last scanline has been updated then
   // reorder and reprofile the OBJ lists.
   if(reg[OAM_UPDATED])
   {
     order_obj(video_mode);
     reg[OAM_UPDATED] = 0;
+#ifdef PD_PPU_STATS
+    pd_ppu_stat_oam_orders++;
+#endif
   }
 
   order_layers((dispcnt >> 8) & active_layers[video_mode], vcount);
+#ifdef PD_PPU_STATS
+  pd_ppu_stat_layers[MIN(layer_count, 8U)]++;
+#endif
 
   // If the screen is in in forced blank draw pure white.
   if(dispcnt & 0x80)
@@ -2396,5 +2418,4 @@ void update_scanline(void)
     }
   }
 }
-
 

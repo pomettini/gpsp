@@ -263,6 +263,12 @@ ifeq ($(PPUOFF),1)
 UDEFS += -DPD_PPU_OFF
 endif
 
+# make PPUSTATS=1: count rendered scanlines by video mode, window setup,
+# color effect and active-layer count. Diagnostic only; appended to perf.log.
+ifeq ($(PPUSTATS),1)
+UDEFS += -DPD_PPU_STATS
+endif
+
 # make INLINEMEM=1: inline load fastpaths in emitted code (A/B experiment).
 ifeq ($(INLINEMEM),1)
 UDEFS += -DPD_INLINE_MEM

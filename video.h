@@ -28,4 +28,13 @@ extern s32 affine_reference_y[2];
 
 extern u16* gba_screen_pixels;
 
+#ifdef PD_PPU_STATS
+extern u32 pd_ppu_stat_lines;
+extern u32 pd_ppu_stat_modes[8];
+extern u32 pd_ppu_stat_windows[8];
+extern u32 pd_ppu_stat_effects[4];
+extern u32 pd_ppu_stat_layers[9];
+extern u32 pd_ppu_stat_oam_orders;
+#endif
+
 #endif

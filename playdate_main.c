@@ -496,7 +496,7 @@ static void perf_flush(u32 now)
   SDFile *f = pd->file->open("perf.log", kFileAppend);
   if (f)
   {
-    char line[260];
+    char line[512];
     u32 wall = now - perf_window_start_ms;
     int len = snprintf(line, sizeof(line),
         "build %s %s | fs=%s | upd=%u rend=%u skip=%u | wall=%ums "
@@ -580,6 +580,41 @@ static void perf_flush(u32 now)
       last_ff = pd_ff_lines;
     }
 #endif
+#ifdef PD_PPU_STATS
+    if (len > 0 && line[len - 1] == '\n')
+      len--;
+    len += snprintf(line + len, sizeof(line) - len,
+                    " | ppu=%u m=%u,%u,%u,%u,%u,%u w=%u,%u,%u,%u,%u,%u,%u,%u fx=%u,%u,%u,%u ly=%u,%u,%u,%u,%u,%u,%u,%u,%u oam=%u\n",
+                    (unsigned)pd_ppu_stat_lines,
+                    (unsigned)pd_ppu_stat_modes[0],
+                    (unsigned)pd_ppu_stat_modes[1],
+                    (unsigned)pd_ppu_stat_modes[2],
+                    (unsigned)pd_ppu_stat_modes[3],
+                    (unsigned)pd_ppu_stat_modes[4],
+                    (unsigned)pd_ppu_stat_modes[5],
+                    (unsigned)pd_ppu_stat_windows[0],
+                    (unsigned)pd_ppu_stat_windows[1],
+                    (unsigned)pd_ppu_stat_windows[2],
+                    (unsigned)pd_ppu_stat_windows[3],
+                    (unsigned)pd_ppu_stat_windows[4],
+                    (unsigned)pd_ppu_stat_windows[5],
+                    (unsigned)pd_ppu_stat_windows[6],
+                    (unsigned)pd_ppu_stat_windows[7],
+                    (unsigned)pd_ppu_stat_effects[0],
+                    (unsigned)pd_ppu_stat_effects[1],
+                    (unsigned)pd_ppu_stat_effects[2],
+                    (unsigned)pd_ppu_stat_effects[3],
+                    (unsigned)pd_ppu_stat_layers[0],
+                    (unsigned)pd_ppu_stat_layers[1],
+                    (unsigned)pd_ppu_stat_layers[2],
+                    (unsigned)pd_ppu_stat_layers[3],
+                    (unsigned)pd_ppu_stat_layers[4],
+                    (unsigned)pd_ppu_stat_layers[5],
+                    (unsigned)pd_ppu_stat_layers[6],
+                    (unsigned)pd_ppu_stat_layers[7],
+                    (unsigned)pd_ppu_stat_layers[8],
+                    (unsigned)pd_ppu_stat_oam_orders);
+#endif
 #if defined(PD_TCM_POOL) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
     {
       extern int pd_tcm_pool_ok(void);
@@ -597,6 +632,13 @@ static void perf_flush(u32 now)
   perf_updates = perf_rendered = perf_skipped = 0;
   perf_emu_ms = perf_blit_ms = perf_aud_ms = perf_emu_max_ms = 0;
   perf_emu_r_ms = perf_emu_s_ms = 0;
+#ifdef PD_PPU_STATS
+  pd_ppu_stat_lines = pd_ppu_stat_oam_orders = 0;
+  memset(pd_ppu_stat_modes, 0, sizeof(pd_ppu_stat_modes));
+  memset(pd_ppu_stat_windows, 0, sizeof(pd_ppu_stat_windows));
+  memset(pd_ppu_stat_effects, 0, sizeof(pd_ppu_stat_effects));
+  memset(pd_ppu_stat_layers, 0, sizeof(pd_ppu_stat_layers));
+#endif
   perf_last_frame_counter = frame_counter;
   perf_window_start_ms = now;
 }
@@ -720,6 +762,12 @@ static int update(void *userdata)
      * scenes always run and render exactly one frame. */
     {
       int run_two = (pace_owed >= 20000 && last_update_ms < 14);
+#ifdef PD_PPU_OFF
+      /* Keep diagnostic scripts deterministic.  With rendering disabled the
+       * first frame is cheap enough to trigger catch-up continuously, which
+       * inserts unscripted guest frames and changes the tested game state. */
+      run_two = 0;
+#endif
       int nframes = run_two ? 2 : 1;
 
       for (extra = 0; extra < nframes; extra++)
