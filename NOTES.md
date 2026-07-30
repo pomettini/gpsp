@@ -473,6 +473,14 @@ they may land near-native with frameskip.
   29.68 fps / 33.69ms, and sustained battle 40.39 fps / 24.76ms. The
   97-update transition is the dominant remaining hotspot. Segment reports
   now split emulation, audio and rendered-blit cost before deeper profiling.
+- The clean subsystem split confirmed that the transition delta is entirely
+  emulation: overworld 21.39ms, transition 30.72ms, sustained battle 22.39ms;
+  audio stayed near 1.1ms and rendered blits near 3.0ms in all three phases.
+  A 1/257 translated-block profile gated only to the transition captured 551
+  samples with none dropped. `Slice_Main` was 8.17%, `HBlankCB_Slice` 5.81%
+  and the native IRQ return sentinel 4.72%, before unlabelled RAM blocks and
+  host-side IRQ bridge work. The screen-slice encounter effect is therefore
+  the first phase-specific optimization target.
 
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.

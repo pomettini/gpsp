@@ -3,8 +3,13 @@
 
 /* Sample translated block entries rather than memory operations. The trace
  * identifies CPU-heavy guest code even when its memory traffic is diffuse. */
+#ifdef PD_BLOCK_PROFILE_TRANSITION
+#define PD_BLOCKPROF_PERIOD        257
+#define PD_BLOCKPROF_INITIAL       131
+#else
 #define PD_BLOCKPROF_PERIOD       4093
 #define PD_BLOCKPROF_INITIAL      2053
+#endif
 #define PD_BLOCKPROF_CAPACITY    32768
 #define PD_BLOCKPROF_COUNT_REG      62
 

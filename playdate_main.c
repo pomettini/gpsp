@@ -146,6 +146,12 @@ static u32 perf_guest_frames, perf_last_frame_counter;
 static u32 perf_emu_ms, perf_blit_ms, perf_aud_ms, perf_window_start_ms;
 static u32 perf_emu_max_ms;
 
+#if defined(PD_BLOCK_PROFILE_TRANSITION) && defined(HAVE_DYNAREC) && \
+    defined(TARGET_PLAYDATE)
+static void pd_blockprof_transition_start(void);
+static void pd_blockprof_transition_stop(void);
+#endif
+
 #ifdef PD_FIRERED_BATTLE_SEGMENTS
 #define FR_CB2_OVERWORLD       0x080565B4U
 #define FR_CB2_OVERWORLD_BASIC 0x080565A8U
@@ -234,6 +240,10 @@ static void battle_segments_frame(u32 frame_ms, u32 emu_ms, u32 audio_ms,
     pd->system->logToConsole(
       "gpsp battlebench: transition start frame=%u",
       (unsigned)battle_segment_frame);
+#if defined(PD_BLOCK_PROFILE_TRANSITION) && defined(HAVE_DYNAREC) && \
+    defined(TARGET_PLAYDATE)
+    pd_blockprof_transition_start();
+#endif
   }
   else if (battle_segment_state == 2 &&
            callback2 == FR_CB2_BATTLE_MAIN)
@@ -242,6 +252,10 @@ static void battle_segments_frame(u32 frame_ms, u32 emu_ms, u32 audio_ms,
     pd->system->logToConsole(
       "gpsp battlebench: battle start frame=%u",
       (unsigned)battle_segment_frame);
+#if defined(PD_BLOCK_PROFILE_TRANSITION) && defined(HAVE_DYNAREC) && \
+    defined(TARGET_PLAYDATE)
+    pd_blockprof_transition_stop();
+#endif
   }
 
   if (battle_segment_state >= 1 && battle_segment_state <= 3)
@@ -322,12 +336,42 @@ static void pd_blockprof_reset(void)
 {
   pd_blockprof_count = 0;
   pd_blockprof_dropped = 0;
+#ifdef PD_BLOCK_PROFILE_TRANSITION
+  /* Zero underflows on the first block and then counts down for effectively
+   * forever. The callback2 phase detector arms the short capture later. */
+  reg[PD_BLOCKPROF_COUNT_REG] = 0;
+#else
   reg[PD_BLOCKPROF_COUNT_REG] = PD_BLOCKPROF_INITIAL;
+#endif
   pd_blockprof_dumped = 0;
+#ifdef PD_BLOCK_PROFILE_TRANSITION
+  pd->system->logToConsole(
+    "gpsp blockprof: armed transition-only sampling 1/%u, capacity %u",
+    (unsigned)PD_BLOCKPROF_PERIOD, (unsigned)PD_BLOCKPROF_CAPACITY);
+#else
   pd->system->logToConsole("gpsp blockprof: sampling 1/%u, capacity %u",
                            (unsigned)PD_BLOCKPROF_PERIOD,
                            (unsigned)PD_BLOCKPROF_CAPACITY);
+#endif
 }
+
+#ifdef PD_BLOCK_PROFILE_TRANSITION
+static void pd_blockprof_transition_start(void)
+{
+  pd_blockprof_count = 0;
+  pd_blockprof_dropped = 0;
+  reg[PD_BLOCKPROF_COUNT_REG] = PD_BLOCKPROF_INITIAL;
+  pd->system->logToConsole("gpsp blockprof: transition capture started");
+}
+
+static void pd_blockprof_transition_stop(void)
+{
+  reg[PD_BLOCKPROF_COUNT_REG] = 0;
+  pd->system->logToConsole(
+    "gpsp blockprof: transition capture stopped at %u samples",
+    (unsigned)pd_blockprof_count);
+}
+#endif
 
 static void pd_blockprof_dump(void)
 {

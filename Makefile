@@ -282,6 +282,20 @@ UDEFS += -DPD_BLOCK_PROFILE
 UADEFS += -DPD_BLOCK_PROFILE
 endif
 
+# make TRANSITIONPROFILE=1 with BLOCKPROFILE=1 and BATTLESEG=1: collect a
+# denser translated-block sample only between FireRed's overworld exit and
+# BattleMainCB2. This keeps the one-off encounter cost out of whole-run data.
+ifeq ($(TRANSITIONPROFILE),1)
+ifneq ($(BLOCKPROFILE),1)
+$(error TRANSITIONPROFILE=1 requires BLOCKPROFILE=1)
+endif
+ifneq ($(BATTLESEG),1)
+$(error TRANSITIONPROFILE=1 requires BATTLESEG=1)
+endif
+UDEFS += -DPD_BLOCK_PROFILE_TRANSITION
+UADEFS += -DPD_BLOCK_PROFILE_TRANSITION
+endif
+
 # make FUNCPROFILE=1: measure active host time inside selected complete
 # FireRed guest functions. Diagnostic only; exact entry/exit probes add
 # two timer calls to each measured invocation.
