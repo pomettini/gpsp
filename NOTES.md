@@ -465,6 +465,14 @@ they may land near-native with frameskip.
   repeated per-sprite C bridges and PSRAM data access erase the apparent
   interpreter headroom. Future HLE targets must amortize a bridge over a
   substantially longer guest routine.
+- Callback2-based segment timing now isolates the battle script's single
+  encounter instead of diluting it into the whole-run mean. An arithmetic
+  luminance experiment measured 43.34 fps overall and was removed as a
+  2.4% regression versus the 44.41 fps LUT control. Its useful phase data
+  was: overworld 43.32 fps / 23.08ms, transition plus battle initialization
+  29.68 fps / 33.69ms, and sustained battle 40.39 fps / 24.76ms. The
+  97-update transition is the dominant remaining hotspot. Segment reports
+  now split emulation, audio and rendered-blit cost before deeper profiling.
 
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.

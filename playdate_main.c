@@ -160,6 +160,10 @@ typedef struct
   u32 worst_ms;
   u32 slow_frames;
   u32 skipped_frames;
+  u32 rendered_frames;
+  u32 emu_ms;
+  u32 audio_ms;
+  u32 blit_ms;
 } PDBattleSegment;
 
 static PDBattleSegment battle_segments[3];
@@ -182,10 +186,14 @@ static void battle_segments_reset(void)
 }
 
 static void battle_segment_add(PDBattleSegment *segment, u32 frame_ms,
+                               u32 emu_ms, u32 audio_ms, u32 blit_ms,
                                int skipped)
 {
   segment->frames++;
   segment->elapsed_ms += frame_ms;
+  segment->emu_ms += emu_ms;
+  segment->audio_ms += audio_ms;
+  segment->blit_ms += blit_ms;
   if (segment->frames == 1 || frame_ms < segment->best_ms)
     segment->best_ms = frame_ms;
   if (segment->frames == 1 || frame_ms > segment->worst_ms)
@@ -194,9 +202,12 @@ static void battle_segment_add(PDBattleSegment *segment, u32 frame_ms,
     segment->slow_frames++;
   if (skipped)
     segment->skipped_frames++;
+  else
+    segment->rendered_frames++;
 }
 
-static void battle_segments_frame(u32 frame_ms, int skipped)
+static void battle_segments_frame(u32 frame_ms, u32 emu_ms, u32 audio_ms,
+                                  u32 blit_ms, int skipped)
 {
   u32 callback2;
 
@@ -235,7 +246,7 @@ static void battle_segments_frame(u32 frame_ms, int skipped)
 
   if (battle_segment_state >= 1 && battle_segment_state <= 3)
     battle_segment_add(&battle_segments[battle_segment_state - 1],
-                       frame_ms, skipped);
+                       frame_ms, emu_ms, audio_ms, blit_ms, skipped);
 }
 
 static void battle_segment_log(const char *name,
@@ -245,13 +256,20 @@ static void battle_segment_log(const char *name,
     (double)segment->elapsed_ms / segment->frames : 0.0;
   double fps = segment->elapsed_ms ?
     (double)segment->frames * 1000.0 / segment->elapsed_ms : 0.0;
+  double emu_avg = segment->frames ?
+    (double)segment->emu_ms / segment->frames : 0.0;
+  double audio_avg = segment->frames ?
+    (double)segment->audio_ms / segment->frames : 0.0;
+  double blit_avg = segment->rendered_frames ?
+    (double)segment->blit_ms / segment->rendered_frames : 0.0;
   pd->system->logToConsole(
     "gpsp battlebench: %s frames=%u elapsed_ms=%u avg_ms=%.2f "
-    "best_ms=%u worst_ms=%u slow=%u skipped=%u fps=%.2f",
+    "best_ms=%u worst_ms=%u slow=%u skipped=%u fps=%.2f "
+    "emu_avg=%.2f audio_avg=%.2f blit_rendered_avg=%.2f",
     name, (unsigned)segment->frames, (unsigned)segment->elapsed_ms,
     avg, (unsigned)segment->best_ms, (unsigned)segment->worst_ms,
     (unsigned)segment->slow_frames, (unsigned)segment->skipped_frames,
-    fps);
+    fps, emu_avg, audio_avg, blit_avg);
 }
 
 static void battle_segments_report(void)
@@ -1025,7 +1043,8 @@ static int update(void *userdata)
 
   last_update_ms = t2 - t0;
 #ifdef PD_FIRERED_BATTLE_SEGMENTS
-  battle_segments_frame(last_update_ms, skip);
+  battle_segments_frame(last_update_ms, t1 - t0, t_aud - t1,
+                        t2 - t_aud, skip);
 #endif
   pd_playbench_update();
   pd_playbench_report_frame((float)last_update_ms, skip ? 1 : 0);
