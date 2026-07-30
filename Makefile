@@ -115,6 +115,13 @@ ifeq ($(PPUHALF),1)
 UDEFS += -DPD_PPU_HALF
 endif
 
+# make FASTOBJWIN=1: approximate the GBA OBJ window as ordinary window-out
+# pixels. This avoids the expensive per-window-sprite conditional rerender
+# used by FireRed battles while retaining Window 0/1 clipping.
+ifeq ($(FASTOBJWIN),1)
+UDEFS += -DPD_PPU_FAST_OBJWIN
+endif
+
 # Default: mix guest audio at 32.768kHz instead of 65.536kHz to reduce PSG
 # mixing cost. SOUND32K=0 restores the cleaner 65.536kHz path.
 ifeq ($(SOUND32K),1)

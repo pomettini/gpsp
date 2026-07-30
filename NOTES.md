@@ -420,6 +420,22 @@ they may land near-native with frameskip.
   Remaining battle split: skipped updates ~29ms, rendered updates ~52ms, so
   callback code plus battle PPU rendering are next after a manual visual-
   correctness check.
+- Correcting the FireRed HBlank callback offsets and bypassing the remaining
+  copied dispatcher made battle speed roughly match the overworld. With the
+  full guarded FireRed stack and burst autoskip, the clean 2868-update battle
+  script reached 43.38 estimated fps.
+- A PPUSTATS+MEMPROFILE run measured 41.29 fps with diagnostic overhead and
+  isolated the stable battle renderer: all 24000 sampled scanlines were
+  mode 0 with Window 0 plus OBJ window active. Rendered updates cost roughly
+  12.7ms more than skipped updates. Residual guest-memory traffic was diffuse;
+  the apparent 0x081E34FC I/O hotspot mapped to AgbRFU_checkID's startup-only
+  timer wait and disappeared from sustained battle slices.
+- `FASTOBJWIN=1` approximates OBJ-window pixels as ordinary window-out pixels
+  while retaining Window 0/1 clipping. This removes the conditional rerender
+  for every OBJ-window sprite. The clean same-script result was 44.45 fps /
+  22.50ms average, up 2.5% from 43.38 fps. The battle transition, Pokemon
+  sprites, health boxes and UI showed no visible glitches on RevB. The flag
+  remains opt-in pending broader FireRed visual coverage.
 
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.

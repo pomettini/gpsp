@@ -2324,19 +2324,35 @@ static void render_scanline_window(u16 *scanline)
     break;
 
   case 0x4: // Window Obj
+#ifdef PD_PPU_FAST_OBJWIN
+    render_windowout_pass(scanline, 0, 240);
+#else
     render_windowobj_pass(scanline, 0, 240);
+#endif
     break;
 
   case 0x5: // Window 0 & Obj
+#ifdef PD_PPU_FAST_OBJWIN
+    render_window_n_pass<render_windowout_pass, 0>(scanline, 0, 240);
+#else
     render_window_n_pass<render_windowobj_pass, 0>(scanline, 0, 240);
+#endif
     break;
 
   case 0x6: // Window 1 & Obj
+#ifdef PD_PPU_FAST_OBJWIN
+    render_window_n_pass<render_windowout_pass, 1>(scanline, 0, 240);
+#else
     render_window_n_pass<render_windowobj_pass, 1>(scanline, 0, 240);
+#endif
     break;
 
   case 0x7: // Window 0, 1 & Obj
+#ifdef PD_PPU_FAST_OBJWIN
+    render_window_n_pass<render_window_n_pass<render_windowout_pass, 1>, 0>(scanline, 0, 240);
+#else
     render_window_n_pass<render_window_n_pass<render_windowobj_pass, 1>, 0>(scanline, 0, 240);
+#endif
     break;
   }
 }
@@ -2418,4 +2434,3 @@ void update_scanline(void)
     }
   }
 }
-
