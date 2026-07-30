@@ -14,6 +14,7 @@
 @    collects standard sections.
 
 #include "../gpsp_config.h"
+#include "../pd_blockprof.h"
 #include "../pd_memprof.h"
 
 .syntax unified
@@ -704,6 +705,52 @@ mem_dispatch_builder(6, 1)   @ load u16
 mem_dispatch_builder(7, 1)   @ load s16
 mem_dispatch_builder(8, 2)   @ load u32
 
+#ifdef PD_BLOCK_PROFILE
+@ Called at the first instruction of every translated block. ROM/BIOS blocks
+@ have an eight-byte hash header immediately before the entry, so LR-12 holds
+@ their guest PC/mode key. RAM blocks have no header and are recorded as zero.
+defsymbl(t2_blockprof_tick)
+  save_flags()
+  ldr r0, [reg_base, #(PD_BLOCKPROF_COUNT_REG * 4)]
+  sub.w r0, r0, #1
+  str r0, [reg_base, #(PD_BLOCKPROF_COUNT_REG * 4)]
+  cbnz r0, 94f
+  movw r0, #PD_BLOCKPROF_PERIOD
+  str r0, [reg_base, #(PD_BLOCKPROF_COUNT_REG * 4)]
+
+  push {r1, r2, r3, lr}
+  bic r2, lr, #1
+  ldr r1, =rom_translation_cache
+  sub r3, r2, r1
+  ldr r1, =ROM_TRANSLATION_CACHE_SIZE
+  cmp r3, r1
+  ite lo
+  ldrlo r2, [r2, #-12]
+  movhs r2, #0
+
+  ldr r3, =pd_blockprof_count
+  ldr r0, [r3]
+  movw r1, #PD_BLOCKPROF_CAPACITY
+  cmp r0, r1
+  bhs 92f
+  ldr r1, =pd_blockprof_records
+  str r2, [r1, r0, lsl #2]
+  add r0, r0, #1
+  str r0, [r3]
+  b 93f
+92:
+  ldr r3, =pd_blockprof_dropped
+  ldr r0, [r3]
+  add r0, r0, #1
+  str r0, [r3]
+93:
+  pop {r1, r2, r3, lr}
+94:
+  restore_flags()
+  bx lr
+.size t2_blockprof_tick, .-t2_blockprof_tick
+#endif
+
 #ifdef PD_MEM_PROFILE
 @ Input: r0 = raw guest address, r2 = operation kind (the dispatch table
 @ number), r10 = exact guest PC. r1 is preserved for stores.
@@ -1270,6 +1317,19 @@ defsymbl_data(rom_translation_cache)
 defsymbl_data(ram_translation_cache)
   .space RAM_TRANSLATION_CACHE_SIZE
 .size ram_translation_cache, .-ram_translation_cache
+
+#ifdef PD_BLOCK_PROFILE
+@ Keep profiler storage after the dynarec's fixed-offset state.
+defsymbl_data(pd_blockprof_count)
+  .space 4
+.size pd_blockprof_count, .-pd_blockprof_count
+defsymbl_data(pd_blockprof_dropped)
+  .space 4
+.size pd_blockprof_dropped, .-pd_blockprof_dropped
+defsymbl_data(pd_blockprof_records)
+  .space PD_BLOCKPROF_CAPACITY * 4
+.size pd_blockprof_records, .-pd_blockprof_records
+#endif
 
 #ifdef PD_MEM_PROFILE
 @ Keep profiler storage after the fixed reg-base layout above: inserting it

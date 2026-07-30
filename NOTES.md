@@ -436,6 +436,16 @@ they may land near-native with frameskip.
   22.50ms average, up 2.5% from 43.38 fps. The battle transition, Pokemon
   sprites, health boxes and UI showed no visible glitches on RevB. The flag
   remains opt-in pending broader FireRed visual coverage.
+- A sampled translated-block profile resolved against a byte-identical
+  FireRed US 1.0 decomp build found `AddSpritesToOamBuffer` at roughly 10%
+  of battle block entries, followed by the inactive-slot loops in
+  `AnimateSprites` and `RunTextPrinters`. A complete signature-guarded native
+  OAM submission implementation was visually and audibly correct, including
+  subsprites, but measured 44.22 fps / 22.62ms versus the 44.45 / 22.50ms
+  control. Dropped: one C bridge per frame costs as much as the compact guest
+  routine saves. The next experiment should fast-forward only the exact
+  inactive-slot scan blocks inside the dynarec, keeping callbacks in guest
+  code and avoiding a C helper.
 
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.

@@ -73,6 +73,9 @@ void t2_hle_firered_irq_return(void);
 #ifdef PD_IWRAM_STACK_FAST
 void t2_hle_iwram_push(void);
 #endif
+#ifdef PD_BLOCK_PROFILE
+void t2_blockprof_tick(void);
+#endif
 
 #define armfn_gbaup_idle_arm       0
 #define armfn_gbaup_idle_thumb     1
@@ -527,7 +530,12 @@ u32 thumb_prepare_load_reg_pc(u8 **tptr, u32 scratch_reg, u32 reg_index, u32 pc_
 }
 
 #define block_prologue_size 0
+#ifdef PD_BLOCK_PROFILE
+#define generate_block_prologue()                                             \
+  t2_bl(translation_ptr, (u32)(uintptr_t)t2_blockprof_tick)
+#else
 #define generate_block_prologue()
+#endif
 
 /* T32 emits 16-bit forms, so a block can end 2-byte aligned; the frontend
  * writes 8-byte block headers into the stream with STRD (4-byte alignment

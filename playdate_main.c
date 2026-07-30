@@ -12,6 +12,9 @@
 #include "render.h"
 #include "rom_picker.h"
 #include "pd_playbench.h"
+#ifdef PD_BLOCK_PROFILE
+#include "pd_blockprof.h"
+#endif
 #ifdef PD_MEM_PROFILE
 #include "pd_memprof.h"
 #endif
@@ -162,6 +165,58 @@ static int pd_iwram_stack_fast_logged;
 #if defined(PD_M4A_DUMP) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
 static u32 pd_m4a_dump_frames;
 static int pd_m4a_dumped;
+#endif
+
+#if defined(PD_BLOCK_PROFILE) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
+typedef struct
+{
+  char magic[8];
+  uint32_t version;
+  uint32_t period;
+  uint32_t count;
+  uint32_t dropped;
+  uint32_t capacity;
+} PDBlockProfileHeader;
+
+static int pd_blockprof_dumped;
+
+static void pd_blockprof_reset(void)
+{
+  pd_blockprof_count = 0;
+  pd_blockprof_dropped = 0;
+  reg[PD_BLOCKPROF_COUNT_REG] = PD_BLOCKPROF_INITIAL;
+  pd_blockprof_dumped = 0;
+  pd->system->logToConsole("gpsp blockprof: sampling 1/%u, capacity %u",
+                           (unsigned)PD_BLOCKPROF_PERIOD,
+                           (unsigned)PD_BLOCKPROF_CAPACITY);
+}
+
+static void pd_blockprof_dump(void)
+{
+  PDBlockProfileHeader header = {
+    {'G', 'P', 'S', 'P', 'B', 'L', 'K', '1'},
+    1,
+    PD_BLOCKPROF_PERIOD,
+    pd_blockprof_count,
+    pd_blockprof_dropped,
+    PD_BLOCKPROF_CAPACITY
+  };
+  SDFile *f = pd->file->open("blockprof.bin", kFileWrite);
+
+  pd_blockprof_dumped = 1;
+  if (!f)
+  {
+    pd->system->logToConsole("gpsp blockprof: cannot write blockprof.bin");
+    return;
+  }
+
+  pd->file->write(f, &header, sizeof(header));
+  pd->file->write(f, pd_blockprof_records,
+                  (unsigned int)(header.count * sizeof(pd_blockprof_records[0])));
+  pd->file->close(f);
+  pd->system->logToConsole("gpsp blockprof: wrote %u samples, dropped %u",
+                           (unsigned)header.count, (unsigned)header.dropped);
+}
 #endif
 
 #if defined(PD_MEM_PROFILE) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
@@ -429,6 +484,9 @@ static void start_emulation(void)
 
 #if defined(PD_MEM_PROFILE) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
   pd_memprof_reset();
+#endif
+#if defined(PD_BLOCK_PROFILE) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
+  pd_blockprof_reset();
 #endif
 
 #if defined(PD_SCHED_STATS) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
@@ -839,6 +897,10 @@ static int update(void *userdata)
 #if defined(PD_MEM_PROFILE) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
   if (!pd_memprof_dumped && pd_playbench_is_finished())
     pd_memprof_dump();
+#endif
+#if defined(PD_BLOCK_PROFILE) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
+  if (!pd_blockprof_dumped && pd_playbench_is_finished())
+    pd_blockprof_dump();
 #endif
 
 #if defined(PD_M4A_DUMP) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)

@@ -258,6 +258,20 @@ UDEFS += -DPD_MEM_PROFILE
 UADEFS += -DPD_MEM_PROFILE
 endif
 
+# make BLOCKPROFILE=1: sample translated block entries and write
+# Data/blockprof.bin after playbench. Diagnostic only; the per-block call
+# intentionally perturbs timing and emitted-code size.
+ifeq ($(BLOCKPROFILE),1)
+ifneq ($(DYNAREC),1)
+$(error BLOCKPROFILE=1 requires DYNAREC=1)
+endif
+ifneq ($(BENCH),1)
+$(error BLOCKPROFILE=1 requires BENCH=1)
+endif
+UDEFS += -DPD_BLOCK_PROFILE
+UADEFS += -DPD_BLOCK_PROFILE
+endif
+
 # make SCHEDSTATS=1: count+sample update_gba scheduler round-trips
 # (perf.log gains a "gba" field). Tiny per-call overhead; A/B only.
 ifeq ($(SCHEDSTATS),1)
