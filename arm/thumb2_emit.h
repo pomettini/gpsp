@@ -76,6 +76,10 @@ void t2_hle_iwram_push(void);
 #ifdef PD_BLOCK_PROFILE
 void t2_blockprof_tick(void);
 #endif
+#ifdef PD_FUNC_PROFILE
+void t2_funcprof_stamp(void);
+void t2_funcprof_callback_enter(void);
+#endif
 
 #define armfn_gbaup_idle_arm       0
 #define armfn_gbaup_idle_thumb     1

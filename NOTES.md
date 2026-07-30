@@ -453,6 +453,18 @@ they may land near-native with frameskip.
   than weakening correctness. Block-entry frequency has now produced two
   misleading targets (flat OAM submission and unsafe scan); the next profile
   must measure elapsed host time around complete guest functions.
+- The elapsed-time guest-function profiler pauses outside emulation and
+  measures exact entry/exit pairs. On the 2868-frame battle script,
+  `AnimateSprites` consumed 18.81% of active time: `AnimateSprite` 9.55%,
+  dynamic callbacks 5.57%. OAM submission was only 3.95%, confirming why
+  its HLE was flat. The callback histogram also separated gameplay work from
+  title/quest-log-only functions.
+- A complete, signature-guarded native ordinary-animation interpreter was
+  glitch-free but measured 44.07 fps. Direct mapped ROM reads recovered it
+  to 44.41 fps, statistically identical to the 44.45 control. Removed:
+  repeated per-sprite C bridges and PSRAM data access erase the apparent
+  interpreter headroom. Future HLE targets must amortize a bridge over a
+  substantially longer guest routine.
 
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.

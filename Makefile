@@ -45,6 +45,7 @@ SRC = playdate_main.c \
       pd_m4a_hle.c \
       pd_firered_hle.c \
       pd_firered_irq.c \
+      pd_funcprof.c \
       pd_iwram_stack.c \
       pd_dynarec_hoststub.c
 
@@ -270,6 +271,20 @@ $(error BLOCKPROFILE=1 requires BENCH=1)
 endif
 UDEFS += -DPD_BLOCK_PROFILE
 UADEFS += -DPD_BLOCK_PROFILE
+endif
+
+# make FUNCPROFILE=1: measure active host time inside selected complete
+# FireRed guest functions. Diagnostic only; exact entry/exit probes add
+# two timer calls to each measured invocation.
+ifeq ($(FUNCPROFILE),1)
+ifneq ($(DYNAREC),1)
+$(error FUNCPROFILE=1 requires DYNAREC=1)
+endif
+ifneq ($(BENCH),1)
+$(error FUNCPROFILE=1 requires BENCH=1)
+endif
+UDEFS += -DPD_FUNC_PROFILE
+UADEFS += -DPD_FUNC_PROFILE
 endif
 
 # make SCHEDSTATS=1: count+sample update_gba scheduler round-trips

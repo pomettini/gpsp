@@ -751,6 +751,27 @@ defsymbl(t2_blockprof_tick)
 .size t2_blockprof_tick, .-t2_blockprof_tick
 #endif
 
+#ifdef PD_FUNC_PROFILE
+@ Exact guest-function entry/exit probe. The emitted site passes a compact
+@ token in host r0; cached Thumb guest r0-r5 live in r3-r8 and are preserved.
+defsymbl(t2_funcprof_stamp)
+  save_flags()
+  call_c_function_abs(pd_funcprof_stamp)
+  restore_flags()
+  bx lr
+.size t2_funcprof_stamp, .-t2_funcprof_stamp
+
+@ AnimateSprites callback call site: cached guest r1 (host r4) holds the
+@ callback's guest address. Record it without changing guest state.
+defsymbl(t2_funcprof_callback_enter)
+  save_flags()
+  mov r0, r4
+  call_c_function_abs(pd_funcprof_callback_enter)
+  restore_flags()
+  bx lr
+.size t2_funcprof_callback_enter, .-t2_funcprof_callback_enter
+#endif
+
 #ifdef PD_MEM_PROFILE
 @ Input: r0 = raw guest address, r2 = operation kind (the dispatch table
 @ number), r10 = exact guest PC. r1 is preserved for stores.

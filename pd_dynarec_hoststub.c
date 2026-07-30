@@ -67,6 +67,10 @@ void t2_hle_firered_irq_return(void) {}
 #ifdef PD_BLOCK_PROFILE
 void t2_blockprof_tick(void) {}
 #endif
+#ifdef PD_FUNC_PROFILE
+void t2_funcprof_stamp(void) {}
+void t2_funcprof_callback_enter(void) {}
+#endif
 void t2_hle_bios_arm(void) {}
 void t2_hle_bios_thumb(void) {}
 void t2_mem_dispatch_0(void) {} void t2_mem_dispatch_1(void) {}

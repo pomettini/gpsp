@@ -12,6 +12,7 @@
 #include "render.h"
 #include "rom_picker.h"
 #include "pd_playbench.h"
+#include "pd_funcprof.h"
 #ifdef PD_BLOCK_PROFILE
 #include "pd_blockprof.h"
 #endif
@@ -488,6 +489,9 @@ static void start_emulation(void)
 #if defined(PD_BLOCK_PROFILE) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
   pd_blockprof_reset();
 #endif
+#ifdef PD_FUNC_PROFILE
+  pd_funcprof_reset();
+#endif
 
 #if defined(PD_SCHED_STATS) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
   /* Warm-lookup microbenchmark: how much does one runtime block lookup
@@ -864,7 +868,13 @@ static int update(void *userdata)
 #ifdef HAVE_DYNAREC
         if (dynarec_enable)
         {
+#ifdef PD_FUNC_PROFILE
+          pd_funcprof_resume();
+#endif
           execute_arm_translate(execute_cycles);
+#ifdef PD_FUNC_PROFILE
+          pd_funcprof_pause();
+#endif
         }
         else
 #endif
@@ -901,6 +911,10 @@ static int update(void *userdata)
 #if defined(PD_BLOCK_PROFILE) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
   if (!pd_blockprof_dumped && pd_playbench_is_finished())
     pd_blockprof_dump();
+#endif
+#ifdef PD_FUNC_PROFILE
+  if (pd_playbench_is_finished())
+    pd_funcprof_report();
 #endif
 
 #if defined(PD_M4A_DUMP) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
@@ -1099,6 +1113,7 @@ int eventHandler(PlaydateAPI *playdate, PDSystemEvent event, uint32_t arg)
       pd_syscalls_pd = pd;
 #endif
       pd_filestream_init(pd);
+      pd_funcprof_init(pd);
       pd_render_init(pd);
       pd_audio_init(pd);
       pd->system->setAutoLockDisabled(1);

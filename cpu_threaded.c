@@ -25,6 +25,9 @@
 #ifdef PD_FIRERED_IRQ_HLE
 #include "pd_firered_irq.h"
 #endif
+#ifdef PD_FUNC_PROFILE
+#include "pd_funcprof.h"
+#endif
 #if defined(VITA)
 #include <psp2/kernel/sysmem.h>
 #include <stdio.h>
@@ -3479,6 +3482,20 @@ bool translate_block_thumb(u32 pc, bool ram_region)
   while(pc != block_end_pc)
   {
     block_data[block_data_position].block_offset = translation_ptr;
+#ifdef PD_FUNC_PROFILE
+    {
+      u32 pd_fp_token = pd_funcprof_token_for_pc(pc);
+      if (pc == 0x08006B7EU)
+      {
+        generate_function_call(t2_funcprof_callback_enter);
+      }
+      else if (pd_fp_token)
+      {
+        t2_load_imm32(reg_a0, pd_fp_token);
+        generate_function_call(t2_funcprof_stamp);
+      }
+    }
+#endif
     thumb_base_cycles();
 
     if (pc == cheat_master_hook)
