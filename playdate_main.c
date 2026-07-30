@@ -146,6 +146,125 @@ static u32 perf_guest_frames, perf_last_frame_counter;
 static u32 perf_emu_ms, perf_blit_ms, perf_aud_ms, perf_window_start_ms;
 static u32 perf_emu_max_ms;
 
+#ifdef PD_FIRERED_BATTLE_SEGMENTS
+#define FR_CB2_OVERWORLD       0x080565B4U
+#define FR_CB2_OVERWORLD_BASIC 0x080565A8U
+#define FR_CB2_BATTLE_MAIN     0x08011100U
+#define FR_BATTLE_ARM_FRAME    1400U
+
+typedef struct
+{
+  u32 frames;
+  u32 elapsed_ms;
+  u32 best_ms;
+  u32 worst_ms;
+  u32 slow_frames;
+  u32 skipped_frames;
+} PDBattleSegment;
+
+static PDBattleSegment battle_segments[3];
+static u32 battle_segment_frame;
+static u32 battle_segment_state;
+static int battle_segments_reported;
+
+static u32 firered_callback2(void)
+{
+  /* The first 32KB is the dynarec SMC shadow; guest IWRAM follows. */
+  return readaddress32(iwram + 0x8000, 0x30F4) & ~1U;
+}
+
+static void battle_segments_reset(void)
+{
+  memset(battle_segments, 0, sizeof(battle_segments));
+  battle_segment_frame = 0;
+  battle_segment_state = 0;
+  battle_segments_reported = 0;
+}
+
+static void battle_segment_add(PDBattleSegment *segment, u32 frame_ms,
+                               int skipped)
+{
+  segment->frames++;
+  segment->elapsed_ms += frame_ms;
+  if (segment->frames == 1 || frame_ms < segment->best_ms)
+    segment->best_ms = frame_ms;
+  if (segment->frames == 1 || frame_ms > segment->worst_ms)
+    segment->worst_ms = frame_ms;
+  if (frame_ms > 20)
+    segment->slow_frames++;
+  if (skipped)
+    segment->skipped_frames++;
+}
+
+static void battle_segments_frame(u32 frame_ms, int skipped)
+{
+  u32 callback2;
+
+  if (!pd_playbench_is_running())
+    return;
+  battle_segment_frame++;
+  callback2 = firered_callback2();
+
+  if (battle_segment_state == 0 &&
+      battle_segment_frame >= FR_BATTLE_ARM_FRAME &&
+      callback2 == FR_CB2_OVERWORLD)
+  {
+    battle_segment_state = 1;
+    pd->system->logToConsole(
+      "gpsp battlebench: overworld start frame=%u",
+      (unsigned)battle_segment_frame);
+  }
+
+  if (battle_segment_state <= 1 &&
+      battle_segment_frame >= FR_BATTLE_ARM_FRAME &&
+      callback2 == FR_CB2_OVERWORLD_BASIC)
+  {
+    battle_segment_state = 2;
+    pd->system->logToConsole(
+      "gpsp battlebench: transition start frame=%u",
+      (unsigned)battle_segment_frame);
+  }
+  else if (battle_segment_state == 2 &&
+           callback2 == FR_CB2_BATTLE_MAIN)
+  {
+    battle_segment_state = 3;
+    pd->system->logToConsole(
+      "gpsp battlebench: battle start frame=%u",
+      (unsigned)battle_segment_frame);
+  }
+
+  if (battle_segment_state >= 1 && battle_segment_state <= 3)
+    battle_segment_add(&battle_segments[battle_segment_state - 1],
+                       frame_ms, skipped);
+}
+
+static void battle_segment_log(const char *name,
+                               const PDBattleSegment *segment)
+{
+  double avg = segment->frames ?
+    (double)segment->elapsed_ms / segment->frames : 0.0;
+  double fps = segment->elapsed_ms ?
+    (double)segment->frames * 1000.0 / segment->elapsed_ms : 0.0;
+  pd->system->logToConsole(
+    "gpsp battlebench: %s frames=%u elapsed_ms=%u avg_ms=%.2f "
+    "best_ms=%u worst_ms=%u slow=%u skipped=%u fps=%.2f",
+    name, (unsigned)segment->frames, (unsigned)segment->elapsed_ms,
+    avg, (unsigned)segment->best_ms, (unsigned)segment->worst_ms,
+    (unsigned)segment->slow_frames, (unsigned)segment->skipped_frames,
+    fps);
+}
+
+static void battle_segments_report(void)
+{
+  if (battle_segments_reported)
+    return;
+  battle_segments_reported = 1;
+  battle_segment_log("overworld", &battle_segments[0]);
+  battle_segment_log("transition", &battle_segments[1]);
+  battle_segment_log("battle", &battle_segments[2]);
+}
+#endif
+
 #ifdef PD_M4A_HLE
 extern u32 pd_m4a_hle_matched;
 static int pd_m4a_hle_logged;
@@ -460,6 +579,10 @@ static void start_emulation(void)
   perf_last_frame_counter = frame_counter;
   perf_window_start_ms = pd->system->getCurrentTimeMilliseconds();
   pd->system->logToConsole("gpsp: running %s", selected_rom);
+
+#ifdef PD_FIRERED_BATTLE_SEGMENTS
+  battle_segments_reset();
+#endif
 
 #ifdef PD_M4A_HLE
   pd_m4a_hle_matched = 0;
@@ -901,8 +1024,16 @@ static int update(void *userdata)
   pd->system->drawFPS(0, 0);
 
   last_update_ms = t2 - t0;
+#ifdef PD_FIRERED_BATTLE_SEGMENTS
+  battle_segments_frame(last_update_ms, skip);
+#endif
   pd_playbench_update();
   pd_playbench_report_frame((float)last_update_ms, skip ? 1 : 0);
+
+#ifdef PD_FIRERED_BATTLE_SEGMENTS
+  if (pd_playbench_is_finished())
+    battle_segments_report();
+#endif
 
 #if defined(PD_MEM_PROFILE) && defined(HAVE_DYNAREC) && defined(TARGET_PLAYDATE)
   if (!pd_memprof_dumped && pd_playbench_is_finished())

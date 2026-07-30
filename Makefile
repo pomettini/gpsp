@@ -87,6 +87,15 @@ ifeq ($(BENCH),1)
 UDEFS += -DPD_PLAYBENCH_ENABLED
 endif
 
+# make BATTLESEG=1: split the deterministic FireRed battle script into
+# overworld, transition/init, and sustained-battle timing reports.
+ifeq ($(BATTLESEG),1)
+ifneq ($(BENCH),1)
+$(error BATTLESEG=1 requires BENCH=1)
+endif
+UDEFS += -DPD_FIRERED_BATTLE_SEGMENTS
+endif
+
 # make JITSMOKE=1: run the Thumb-2 emit-and-execute smoke test at boot
 # (Phase 4 step 0, see pd_jit_smoke.c). Run `make clean` when toggling.
 ifeq ($(JITSMOKE),1)
