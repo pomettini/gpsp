@@ -446,6 +446,13 @@ they may land near-native with frameskip.
   routine saves. The next experiment should fast-forward only the exact
   inactive-slot scan blocks inside the dynarec, keeping callbacks in guest
   code and avoiding a C helper.
+- The hand-written sprite-scan fast-forward activated and booted, but stalled
+  FireRed when advancing from the menu while music continued. It crossed
+  dynamic callback boundaries, so matching the scan block's visible register
+  state was not sufficient to preserve game-state progress. Removed rather
+  than weakening correctness. Block-entry frequency has now produced two
+  misleading targets (flat OAM submission and unsafe scan); the next profile
+  must measure elapsed host time around complete guest functions.
 
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.
