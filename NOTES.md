@@ -487,9 +487,12 @@ they may land near-native with frameskip.
   callback entry and return redispatch. The clean segmented run improved
   transition emulation from 30.72ms to 27.24ms (11.3%) and transition speed
   from 30.59 to 34.09 fps. Audio and rendered-blit costs stayed flat and no
-  visual or audio glitch was reported. `Slice_Main` is the next isolated
-  target; its fixed 160-row buffer loop represented 8.17% of transition
-  block samples.
+  visual or audio glitch was reported. A signature-guarded native replacement
+  for all of `Slice_Main` then activated correctly and passed 100,000
+  randomized state/output comparisons, but measured 27.40ms / 33.98 fps in
+  the transition versus the 27.24ms / 34.09 fps control. It was removed: the
+  fixed 160-row loop is already efficient enough after translation, so its
+  8.17% block-sample share did not represent recoverable host time.
 
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.
