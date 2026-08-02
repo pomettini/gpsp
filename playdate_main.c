@@ -307,7 +307,9 @@ static int pd_firered_hle_logged;
 #endif
 #ifdef PD_FIRERED_IRQ_HLE
 extern u32 pd_firered_irq_matched;
+extern u32 pd_firered_slice_hblank_matched;
 static int pd_firered_irq_logged;
+static int pd_firered_slice_hblank_logged;
 #endif
 #ifdef PD_IWRAM_STACK_FAST
 extern u32 pd_iwram_stack_fast_active;
@@ -656,7 +658,9 @@ static void start_emulation(void)
 #endif
 #ifdef PD_FIRERED_IRQ_HLE
   pd_firered_irq_matched = 0;
+  pd_firered_slice_hblank_matched = 0;
   pd_firered_irq_logged = 0;
+  pd_firered_slice_hblank_logged = 0;
 #endif
 #ifdef PD_IWRAM_STACK_FAST
   pd_iwram_stack_fast_active = 0;
@@ -979,6 +983,12 @@ static int update(void *userdata)
   {
     pd_firered_irq_logged = 1;
     pd->system->logToConsole("gpsp: FireRed HBlank fast path active");
+  }
+  if (pd_firered_slice_hblank_matched && !pd_firered_slice_hblank_logged)
+  {
+    pd_firered_slice_hblank_logged = 1;
+    pd->system->logToConsole(
+      "gpsp: FireRed slice HBlank fast path active");
   }
 #endif
 #ifdef PD_IWRAM_STACK_FAST

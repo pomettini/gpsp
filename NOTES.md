@@ -481,6 +481,15 @@ they may land near-native with frameskip.
   and the native IRQ return sentinel 4.72%, before unlabelled RAM blocks and
   host-side IRQ bridge work. The screen-slice encounter effect is therefore
   the first phase-specific optimization target.
+- A strict six-word ROM-signature guard now executes `HBlankCB_Slice`
+  natively inside the existing FireRed IRQ bridge. It preserves the scanline
+  buffer read and BG1/2/3 horizontal-offset writes while avoiding guest
+  callback entry and return redispatch. The clean segmented run improved
+  transition emulation from 30.72ms to 27.24ms (11.3%) and transition speed
+  from 30.59 to 34.09 fps. Audio and rendered-blit costs stayed flat and no
+  visual or audio glitch was reported. `Slice_Main` is the next isolated
+  target; its fixed 160-row buffer loop represented 8.17% of transition
+  block samples.
 
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.

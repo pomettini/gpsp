@@ -23,6 +23,8 @@
 #define FR_BIOS_INTR_CHECK_OFF 0x00007FF8U
 
 #define FR_HBLANK_WRAPPER      0x080007DDU
+#define FR_HBLANK_CB_SLICE     0x080D33C1U
+#define FR_SLICE_BUFFER1_OFF   0x00038E80U
 
 typedef struct
 {
@@ -35,7 +37,9 @@ typedef struct
 
 static PDFireRedIRQState pd_fr_irq_state;
 static u32 pd_fr_irq_active;
+static int pd_fr_slice_hblank_valid;
 u32 pd_firered_irq_matched;
+u32 pd_firered_slice_hblank_matched;
 
 static u8 *fr_iwram(void)
 {
@@ -57,6 +61,16 @@ static int fr_irq_signatures_match(void)
       read_memory32(0x080007FCU) != 0xBC01BC10U)
     return 0;
 
+  /* HBlankCB_Slice reads buffer 1 at VCOUNT and writes the same offset to
+   * BG1/2/3HOFS. Keep this stricter signature separate so ordinary FireRed
+   * HBlank callbacks still take the existing guest-code bridge. */
+  pd_fr_slice_hblank_valid =
+    read_memory32(0x080D33C0U) == 0x48084907U &&
+    read_memory32(0x080D33C4U) == 0x00408800U &&
+    read_memory32(0x080D33DCU) == 0x47708001U &&
+    read_memory32(0x080D33E0U) == 0x02038700U &&
+    read_memory32(0x080D33E4U) == 0x04000006U &&
+    read_memory32(0x080D33E8U) == 0x04000014U;
   pd_firered_irq_matched = 1;
   return 1;
 }
@@ -66,6 +80,23 @@ static void fr_irq_set_completion_flags(void)
   u8 *ram = fr_iwram();
   address16(ram, FR_BIOS_INTR_CHECK_OFF) |= IRQ_HBLANK;
   address16(ram, FR_INTR_CHECK_OFF) |= IRQ_HBLANK;
+}
+
+static int fr_irq_try_slice_hblank(u32 callback)
+{
+  u32 off;
+  u16 value;
+
+  if (callback != FR_HBLANK_CB_SLICE || !pd_fr_slice_hblank_valid)
+    return 0;
+
+  off = FR_SLICE_BUFFER1_OFF + read_ioreg(REG_VCOUNT) * 2U;
+  value = readaddress16(ewram, off & 0x3FFFFU);
+  write_ioreg(REG_BG1HOFS, value);
+  write_ioreg(REG_BG2HOFS, value);
+  write_ioreg(REG_BG3HOFS, value);
+  pd_firered_slice_hblank_matched = 1;
+  return 1;
 }
 
 /* Returns 0 for the ordinary IRQ path, 1 when a guest callback was entered,
@@ -83,6 +114,16 @@ int pd_firered_irq_try_enter(void)
 
   ram = fr_iwram();
   callback = readaddress32(ram, FR_HBLANK_CB_OFF);
+
+  if (fr_irq_try_slice_hblank(callback))
+  {
+    u16 ime = read_ioreg(REG_IME);
+    write_ioreg(REG_IF, read_ioreg(REG_IF) & ~IRQ_HBLANK);
+    write_ioreg(REG_IME, 0);
+    fr_irq_set_completion_flags();
+    write_ioreg(REG_IME, ime);
+    return 2;
+  }
 
   for (i = 0; i < 16; i++)
     pd_fr_irq_state.regs[i] = reg[i];

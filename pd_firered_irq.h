@@ -10,6 +10,7 @@
 int pd_firered_irq_try_enter(void);
 void pd_firered_irq_return(void);
 extern u32 pd_firered_irq_matched;
+extern u32 pd_firered_slice_hblank_matched;
 
 #endif
 
