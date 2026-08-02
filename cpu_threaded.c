@@ -3501,7 +3501,7 @@ bool translate_block_thumb(u32 pc, bool ram_region)
 #ifdef PD_FUNC_PROFILE
     {
       u32 pd_fp_token = pd_funcprof_token_for_pc(pc);
-#ifndef PD_FUNC_PROFILE_TRANSITION
+#if !defined(PD_FUNC_PROFILE_TRANSITION) || defined(PD_FUNC_PROFILE_DEEP)
       if (pc == 0x08006B7EU)
       {
         generate_function_call(t2_funcprof_callback_enter);

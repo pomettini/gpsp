@@ -338,6 +338,16 @@ UDEFS += -DPD_FUNC_PROFILE_TRANSITION
 UADEFS += -DPD_FUNC_PROFILE_TRANSITION
 endif
 
+# make DEEPFUNCPROFILE=1: include per-sprite animation and callback probes in
+# the transition-only function profile. Higher overhead; diagnostic only.
+ifeq ($(DEEPFUNCPROFILE),1)
+ifneq ($(TRANSITIONFUNCPROFILE),1)
+$(error DEEPFUNCPROFILE=1 requires TRANSITIONFUNCPROFILE=1)
+endif
+UDEFS += -DPD_FUNC_PROFILE_DEEP
+UADEFS += -DPD_FUNC_PROFILE_DEEP
+endif
+
 # make SCHEDSTATS=1: count+sample update_gba scheduler round-trips
 # (perf.log gains a "gba" field). Tiny per-call overhead; A/B only.
 ifeq ($(SCHEDSTATS),1)

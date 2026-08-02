@@ -34,7 +34,7 @@ static inline uint32_t pd_funcprof_token_for_pc(uint32_t pc)
     case 0x08006F04U: return PD_FUNCPROF_ADD_SPRITES_OAM;
     case 0x08006F70U: return PD_FUNCPROF_EXIT |
                             PD_FUNCPROF_ADD_SPRITES_OAM;
-#ifndef PD_FUNC_PROFILE_TRANSITION
+#if !defined(PD_FUNC_PROFILE_TRANSITION) || defined(PD_FUNC_PROFILE_DEEP)
     case 0x08006B82U: return PD_FUNCPROF_EXIT |
                             PD_FUNCPROF_SPRITE_CALLBACKS;
     case 0x08007824U: return PD_FUNCPROF_ANIMATE_SPRITE;
