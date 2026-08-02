@@ -3430,6 +3430,22 @@ bool translate_block_thumb(u32 pc, bool ram_region)
   }
 #endif
 
+#ifdef PD_FIRERED_SCAN_HLE
+  {
+    extern int pd_firered_hle_matches(u32 pc);
+    if (!ram_region && pc == 0x08006B62U &&
+        pd_firered_hle_matches(pc))
+    {
+      generate_function_call(t2_hle_firered_sprite_scan);
+      generate_indirect_branch_no_cycle_update(thumb);
+      pd_lit_end_flush();
+      align_translation_ptr();
+      rom_translation_ptr = translation_ptr;
+      return true;
+    }
+  }
+#endif
+
 #ifdef PD_FIRERED_SPRITE_HLE
   {
     extern int pd_firered_hle_matches(u32 pc);

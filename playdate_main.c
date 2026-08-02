@@ -310,6 +310,10 @@ static int pd_m4a_hle_logged;
 #ifdef PD_FIRERED_SPRITE_HLE
 extern u32 pd_firered_hle_matched;
 static int pd_firered_hle_logged;
+#ifdef PD_FIRERED_SCAN_HLE
+extern u32 pd_firered_scan_hle_matched;
+static int pd_firered_scan_hle_logged;
+#endif
 #endif
 #ifdef PD_FIRERED_IRQ_HLE
 extern u32 pd_firered_irq_matched;
@@ -661,6 +665,10 @@ static void start_emulation(void)
 #ifdef PD_FIRERED_SPRITE_HLE
   pd_firered_hle_matched = 0;
   pd_firered_hle_logged = 0;
+#ifdef PD_FIRERED_SCAN_HLE
+  pd_firered_scan_hle_matched = 0;
+  pd_firered_scan_hle_logged = 0;
+#endif
 #endif
 #ifdef PD_FIRERED_IRQ_HLE
   pd_firered_irq_matched = 0;
@@ -983,6 +991,13 @@ static int update(void *userdata)
     pd_firered_hle_logged = 1;
     pd->system->logToConsole("gpsp: FireRed sprite fast path active");
   }
+#ifdef PD_FIRERED_SCAN_HLE
+  if (pd_firered_scan_hle_matched && !pd_firered_scan_hle_logged)
+  {
+    pd_firered_scan_hle_logged = 1;
+    pd->system->logToConsole("gpsp: FireRed sprite scan fast path active");
+  }
+#endif
 #endif
 #ifdef PD_FIRERED_IRQ_HLE
   if (pd_firered_irq_matched && !pd_firered_irq_logged)

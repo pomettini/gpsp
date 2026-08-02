@@ -895,6 +895,74 @@ defsymbl(t2_hle_firered_thumb)
 .size t2_hle_firered_thumb, .-t2_hle_firered_thumb
 #endif
 
+#ifdef PD_FIRERED_SCAN_HLE
+@ FireRed US 1.0 AnimateSprites block 0x08006B62. Skip consecutive inactive
+@ entries directly in EWRAM, then resume the original callback path for the
+@ next active sprite or the original epilogue after slot 63. Thumb guest
+@ r0-r5 are cached in host r3-r8, so restore r4/r5 there rather than only in
+@ their stale backing slots. Charge the skipped guest work and cross the
+@ scheduler normally if it exhausts the current cycle budget.
+defsymbl(t2_hle_firered_sprite_scan)
+  ldr r0, [reg_base, #REG_R6]             @ current sprite index
+  add r1, reg_base, #EWRAM_OFF
+  movw r2, #0x067a                         @ gSprites[0].inUse byte
+  movt r2, #0x0002
+  add r1, r1, r2
+  mov.w r2, #0                             @ scanned-entry count
+
+1:
+  add.w r2, r2, #1
+  ldrb reg_gpc, [r1]
+  tst reg_gpc, #1
+  bne 2f
+  cmp r0, #63
+  beq 3f
+  add.w r0, r0, #1
+  add.w r1, r1, #68
+  b 1b
+
+2:                                           @ resume callback path at +0x1e
+  str r0, [reg_base, #REG_R6]
+  mov reg_x1, reg_gpc                        @ cached guest r1 = flags byte
+  mov.w reg_x0, #1                           @ cached guest r0 = inUse bit
+  movw reg_gpc, #0x063c
+  movt reg_gpc, #0x0202
+  mov.w r1, #68
+  mla reg_gpc, r0, r1, reg_gpc
+  mov reg_x4, reg_gpc                        @ cached guest r4 = sprite
+  add.w reg_x5, reg_gpc, #62                 @ cached guest r5 = flags ptr
+  movw reg_gpc, #0x6b7a
+  movt reg_gpc, #0x0800
+  cmp reg_x0, #0                             @ exact final guest CMP flags
+  b 4f
+
+3:                                           @ original loop exits with r6=64
+  mov reg_x1, reg_gpc                        @ cached guest r1 = flags byte
+  mov.w reg_x0, #64                          @ cached guest r0
+  str reg_x0, [reg_base, #REG_R6]
+  movw reg_gpc, #0x6b9c
+  movt reg_gpc, #0x0800
+  cmp reg_x0, #63                            @ exact final guest CMP flags
+
+4:
+  save_flags()
+  add.w reg_cycles, reg_cycles, r2, lsl #4  @ ~16 GBA cycles per entry
+  cmp reg_cycles, #0
+  blt 5f
+  restore_flags()
+  mov r2, lr
+  ldr r1, =arm_update_gba_thumb
+  blx r1
+  mov lr, r2
+  b 6f
+5:
+  restore_flags()
+6:
+  mov r0, reg_gpc
+  bx lr
+.size t2_hle_firered_sprite_scan, .-t2_hle_firered_sprite_scan
+#endif
+
 #ifdef PD_FIRERED_IRQ_HLE
 @ Return from a directly-dispatched FireRed HBlank callback.  C restores the
 @ interrupted register file and CPU mode; dispatch resumes at that exact PC.

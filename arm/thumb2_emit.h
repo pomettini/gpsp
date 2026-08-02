@@ -67,6 +67,9 @@ void t2_hle_m4a_mixdown(void);
 #ifdef PD_FIRERED_SPRITE_HLE
 void t2_hle_firered_thumb(void);
 #endif
+#ifdef PD_FIRERED_SCAN_HLE
+void t2_hle_firered_sprite_scan(void);
+#endif
 #ifdef PD_FIRERED_IRQ_HLE
 void t2_hle_firered_irq_return(void);
 #endif

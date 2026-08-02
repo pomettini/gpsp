@@ -223,6 +223,19 @@ UDEFS += -DPD_FIRERED_SPRITE_HLE
 UADEFS += -DPD_FIRERED_SPRITE_HLE
 endif
 
+# make SCANFAST=1: hand-written Thumb-2 fast-forward for FireRed US 1.0's
+# inactive-sprite scan. Active callbacks and animation remain guest code.
+ifeq ($(SCANFAST),1)
+ifneq ($(DYNAREC),1)
+$(error SCANFAST=1 requires DYNAREC=1)
+endif
+ifneq ($(SPRITEFAST),1)
+$(error SCANFAST=1 requires SPRITEFAST=1)
+endif
+UDEFS += -DPD_FIRERED_SCAN_HLE
+UADEFS += -DPD_FIRERED_SCAN_HLE
+endif
+
 # make IRQFAST=1: signature-guarded FireRed HBlank interrupt bridge.  The
 # dynamic scanline callback still runs as guest code; only fixed wrappers are
 # native.  Intended for battle scenes, which enable HBlank IRQs every line.

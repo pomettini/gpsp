@@ -508,6 +508,11 @@ they may land near-native with frameskip.
   Thumb mode keeps them cached in host r7/r8. The callback path consequently
   resumed with stale sprite pointers. A corrected experiment must update the
   cached registers directly while still stopping before every active callback.
+  With that fix, the full battle script completed and the clean A/B improved
+  overall speed from 44.01 to 44.30 fps. Transition emulation fell from
+  26.90ms to 26.58ms and transition speed rose from 34.54 to 34.99 fps;
+  sustained battle remained 40.77 fps. Keep the corrected scan: the gain is
+  modest but clean, and callbacks plus ordinary animation remain guest code.
 
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.

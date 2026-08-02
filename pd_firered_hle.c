@@ -12,6 +12,7 @@
 #define FR_PRIORITIES_PC     0x08006CB8U
 #define FR_SORT_PC           0x08006CF8U
 #define FR_MATRICES_PC       0x08006EB8U
+#define FR_SPRITE_SCAN_PC    0x08006B62U
 
 #define FR_SPRITES_OFF       0x0002063CU
 #define FR_PRIORITIES_OFF    0x00021780U
@@ -25,6 +26,7 @@
 #define FR_SPRITE_SIZE       68U
 
 u32 pd_firered_hle_matched;
+u32 pd_firered_scan_hle_matched;
 
 static u32 fr_hash(u32 pc, u32 length)
 {
@@ -48,6 +50,8 @@ int pd_firered_hle_matches(u32 pc)
       length = 448; expected = 0x75F48025U; break;
     case FR_MATRICES_PC:
       length = 76;  expected = 0x09E9CB87U; break;
+    case FR_SPRITE_SCAN_PC:
+      length = 58;  expected = 0x72650145U; break;
     default:
       return 0;
   }
@@ -55,6 +59,8 @@ int pd_firered_hle_matches(u32 pc)
   if (fr_hash(pc, length) != expected)
     return 0;
   pd_firered_hle_matched = 1;
+  if (pc == FR_SPRITE_SCAN_PC)
+    pd_firered_scan_hle_matched = 1;
   return 1;
 }
 
