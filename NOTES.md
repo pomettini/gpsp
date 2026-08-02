@@ -508,11 +508,19 @@ they may land near-native with frameskip.
   Thumb mode keeps them cached in host r7/r8. The callback path consequently
   resumed with stale sprite pointers. A corrected experiment must update the
   cached registers directly while still stopping before every active callback.
-  With that fix, the full battle script completed and the clean A/B improved
-  overall speed from 44.01 to 44.30 fps. Transition emulation fell from
-  26.90ms to 26.58ms and transition speed rose from 34.54 to 34.99 fps;
-  sustained battle remained 40.77 fps. Keep the corrected scan: the gain is
-  modest but clean, and callbacks plus ordinary animation remain guest code.
+  With that fix, the full battle script completed and initially measured
+  44.30 fps, but a deep transition profile exposed a second correctness bug:
+  the scan pointer always began at sprite slot 0 rather than current r6. When
+  slot 0 was active it dispatched stale `SpriteCallbackDummy` pointers from
+  inactive later slots, producing 5,001 callbacks but only 476 animation
+  calls over the transition. The no-op callbacks hid the error visually. The
+  scan must first add `r6 * sizeof(struct Sprite)` to its EWRAM pointer; the
+  44.30 fps result is not a valid performance acceptance point. The fully
+  corrected scan passed 100,000 randomized layouts and completed the clean
+  script without a reported glitch. Against the 44.01 fps control it measured
+  44.24 fps overall; transition emulation improved from 26.90ms to 26.64ms
+  (34.54 to 34.97 fps), and sustained battle emulation improved from 22.61ms
+  to 22.08ms (40.77 to 41.81 fps). Keep it as a small exact-semantics win.
 
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.

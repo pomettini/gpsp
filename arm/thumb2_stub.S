@@ -908,6 +908,8 @@ defsymbl(t2_hle_firered_sprite_scan)
   movw r2, #0x067a                         @ gSprites[0].inUse byte
   movt r2, #0x0002
   add r1, r1, r2
+  mov.w reg_gpc, #68
+  mla r1, r0, reg_gpc, r1                  @ begin at gSprites[r6].inUse
   mov.w r2, #0                             @ scanned-entry count
 
 1:
