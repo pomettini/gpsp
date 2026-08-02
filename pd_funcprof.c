@@ -48,8 +48,13 @@ static const char *const fp_names[PD_FUNCPROF_COUNT] = {
   "BuildOamBuffer",
   "AddSpritesToOamBuffer",
   "SpriteCallbacks",
-  "AnimateSprite"
+  "AnimateSprite",
+  "Slice_Main"
 };
+
+#ifdef PD_FUNC_PROFILE_TRANSITION
+static int fp_capture_enabled;
+#endif
 
 void pd_funcprof_init(PlaydateAPI *api)
 {
@@ -68,8 +73,14 @@ void pd_funcprof_reset(void)
   fp_active_start = 0.0f;
   fp_running = 0;
   fp_reported = 0;
+#ifdef PD_FUNC_PROFILE_TRANSITION
+  fp_capture_enabled = 0;
+  fp_pd->system->logToConsole(
+    "gpsp funcprof: armed transition-only guest timing");
+#else
   fp_pd->system->logToConsole(
     "gpsp funcprof: timing FireRed guest functions");
+#endif
 }
 
 void pd_funcprof_resume(void)
@@ -79,6 +90,10 @@ void pd_funcprof_resume(void)
 
   if (fp_running)
     return;
+#ifdef PD_FUNC_PROFILE_TRANSITION
+  if (!fp_capture_enabled)
+    return;
+#endif
   now = fp_pd->system->getElapsedTime();
   fp_active_start = now;
   fp_running = 1;
@@ -87,6 +102,24 @@ void pd_funcprof_resume(void)
       fp_slots[i].start = now;
   for (i = 0; i < fp_callback_depth; i++)
     fp_callback_stack[i].start = now;
+}
+
+void pd_funcprof_transition_start(void)
+{
+#ifdef PD_FUNC_PROFILE_TRANSITION
+  fp_capture_enabled = 1;
+  fp_pd->system->logToConsole(
+    "gpsp funcprof: transition timing started");
+#endif
+}
+
+void pd_funcprof_transition_stop(void)
+{
+#ifdef PD_FUNC_PROFILE_TRANSITION
+  fp_capture_enabled = 0;
+  fp_pd->system->logToConsole(
+    "gpsp funcprof: transition timing stopped");
+#endif
 }
 
 void pd_funcprof_pause(void)
@@ -242,5 +275,7 @@ void pd_funcprof_pause(void) {}
 void pd_funcprof_stamp(uint32_t token) { (void)token; }
 void pd_funcprof_callback_enter(uint32_t pc) { (void)pc; }
 void pd_funcprof_report(void) {}
+void pd_funcprof_transition_start(void) {}
+void pd_funcprof_transition_stop(void) {}
 
 #endif

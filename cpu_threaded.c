@@ -3485,11 +3485,14 @@ bool translate_block_thumb(u32 pc, bool ram_region)
 #ifdef PD_FUNC_PROFILE
     {
       u32 pd_fp_token = pd_funcprof_token_for_pc(pc);
+#ifndef PD_FUNC_PROFILE_TRANSITION
       if (pc == 0x08006B7EU)
       {
         generate_function_call(t2_funcprof_callback_enter);
       }
-      else if (pd_fp_token)
+      else
+#endif
+      if (pd_fp_token)
       {
         t2_load_imm32(reg_a0, pd_fp_token);
         generate_function_call(t2_funcprof_stamp);

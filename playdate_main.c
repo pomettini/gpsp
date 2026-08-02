@@ -244,6 +244,9 @@ static void battle_segments_frame(u32 frame_ms, u32 emu_ms, u32 audio_ms,
     defined(TARGET_PLAYDATE)
     pd_blockprof_transition_start();
 #endif
+#ifdef PD_FUNC_PROFILE_TRANSITION
+    pd_funcprof_transition_start();
+#endif
   }
   else if (battle_segment_state == 2 &&
            callback2 == FR_CB2_BATTLE_MAIN)
@@ -255,6 +258,9 @@ static void battle_segments_frame(u32 frame_ms, u32 emu_ms, u32 audio_ms,
 #if defined(PD_BLOCK_PROFILE_TRANSITION) && defined(HAVE_DYNAREC) && \
     defined(TARGET_PLAYDATE)
     pd_blockprof_transition_stop();
+#endif
+#ifdef PD_FUNC_PROFILE_TRANSITION
+    pd_funcprof_transition_stop();
 #endif
   }
 

@@ -493,6 +493,21 @@ they may land near-native with frameskip.
   the transition versus the 27.24ms / 34.09 fps control. It was removed: the
   fixed 160-row loop is already efficient enough after translation, so its
   8.17% block-sample share did not represent recoverable host time.
+- A fresh transition-only block capture after the slice-HBlank optimization
+  recorded 459 samples with none dropped. `HBlankCB_Slice` and the IRQ-return
+  sentinel disappeared completely; the remaining concentration was
+  `AnimateSprites` 11.5%, `Slice_Main` 10.9%, `AddSpritesToOamBuffer` 9.2%
+  and unlabelled RAM 5.7%. A low-overhead transition-only elapsed-time pass
+  then measured `AnimateSprites` at 347.248ms over 92 calls (3.774ms/call,
+  13.26%), `BuildOamBuffer` at 1.790ms/call, its nested OAM submission at
+  1.036ms/call, and `Slice_Main` at only 0.822ms on its 37 active frames.
+  Sprite processing is therefore the measured target; scanline-buffer HLE
+  cannot recover the missing transition time.
+- Reinspection of the discarded inactive-sprite scan found its blocking bug:
+  the assembly restored guest r4/r5 to their backing-memory slots even though
+  Thumb mode keeps them cached in host r7/r8. The callback path consequently
+  resumed with stale sprite pointers. A corrected experiment must update the
+  cached registers directly while still stopping before every active callback.
 
 ## PLAN OF ATTACK TO NATIVE (ranked by measured headroom):
 1. Scheduler round 2 (~10ms bundle, biggest): batch is at 227 calls/frame.

@@ -310,6 +310,21 @@ UDEFS += -DPD_FUNC_PROFILE
 UADEFS += -DPD_FUNC_PROFILE
 endif
 
+# make TRANSITIONFUNCPROFILE=1 with FUNCPROFILE=1 and BATTLESEG=1: time only
+# low-frequency outer guest functions during the encounter transition. This
+# avoids the per-sprite callback probes that distorted the earlier full-run
+# diagnostic while providing actual host time rather than block frequency.
+ifeq ($(TRANSITIONFUNCPROFILE),1)
+ifneq ($(FUNCPROFILE),1)
+$(error TRANSITIONFUNCPROFILE=1 requires FUNCPROFILE=1)
+endif
+ifneq ($(BATTLESEG),1)
+$(error TRANSITIONFUNCPROFILE=1 requires BATTLESEG=1)
+endif
+UDEFS += -DPD_FUNC_PROFILE_TRANSITION
+UADEFS += -DPD_FUNC_PROFILE_TRANSITION
+endif
+
 # make SCHEDSTATS=1: count+sample update_gba scheduler round-trips
 # (perf.log gains a "gba" field). Tiny per-call overhead; A/B only.
 ifeq ($(SCHEDSTATS),1)
